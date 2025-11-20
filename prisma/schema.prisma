@@ -1,0 +1,174 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id        Int       @id @default(autoincrement())
+  name      String
+
+  // CRM拡張フィールド
+  homepageUrl     String?
+  contactPerson   String?
+  status          String    @default("未接触")
+  rank            String    @default("C")
+  history         String?
+  salesIdea       String?
+  needs           String?
+  approach        String?
+  messageToClient String?
+  firstContact    DateTime?
+  meetingDate     DateTime?
+  contractDate    DateTime?
+  contactType     String?
+  email           String?
+  notes           String?
+  salesText       String?
+  salesTextUpdated Boolean @default(false)
+  salesTextUpdatedMonth String?
+  regularContact  Boolean  @default(false)
+  regularContactMonth String?
+  lastContact     DateTime?
+
+  // 契約書管理
+  contractPdfPath String?
+  contractPdfName String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  projects  Project[]
+
+  @@map("clients")
+}
+
+model OutsourcingPartner {
+  id        Int       @id @default(autoincrement())
+  name      String
+  type      PartnerType @default(DESIGNER)
+
+  // ポートフォリオ・契約管理
+  portfolioUrl    String?
+  contractPdfPath String?
+  contractPdfName String?
+  email           String?
+  notes           String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  projectPartners ProjectOutsourcingPartner[]
+
+  @@map("outsourcing_partners")
+}
+
+model Project {
+  id                        Int       @id @default(autoincrement())
+  name                      String
+  description               String?
+  clientId                  Int
+  client                    Client    @relation(fields: [clientId], references: [id])
+
+  // ステータス関連
+  salesStatus               SalesStatus @default(CONSULTING)
+  progressStatus            ProgressStatus @default(NOT_STARTED)
+
+  // 日付関連
+  consultationDate          DateTime?
+  orderDate                 DateTime?
+  startDate                 DateTime?
+  firstDraftDate            DateTime?
+  deliveryDate              DateTime?
+
+  // 外注関連
+  hasOutsourcing            Boolean   @default(false)
+  outsourcingPartnerSheetUrl String?
+  projectPartners           ProjectOutsourcingPartner[]
+
+  // クライアント共有
+  clientSheetUrl            String?
+
+  // 請求・支払い関連
+  amount                    Int       @default(0)
+  outsourcingCost           Int       @default(0)
+  invoiceIssued             Boolean   @default(false)
+  paymentConfirmed          Boolean   @default(false)
+  paymentDueDate            DateTime?
+
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+
+  @@map("projects")
+}
+
+enum SalesStatus {
+  CONSULTING        // 相談中
+  QUOTE_SUBMITTED   // お見積り提示中
+  ORDER_CONFIRMED   // 受注確定
+  IN_PROGRESS       // 進行中
+  DELIVERED         // 納品
+  WAITING_CONTACT   // 連絡待ち
+  LOST              // 失注
+}
+
+enum ProgressStatus {
+  NOT_STARTED       // 未着手
+  DESIGNING         // デザイン中
+  CODING            // コーディング中
+  REVIEWING         // 確認中
+  REVISING          // 修正中
+  DELIVERED         // 納品済
+}
+
+enum PartnerType {
+  DESIGNER          // デザイナー
+  CODER             // コーダー
+}
+
+model ProjectOutsourcingPartner {
+  id                    Int                 @id @default(autoincrement())
+  projectId             Int
+  outsourcingPartnerId  Int
+
+  project               Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  outsourcingPartner    OutsourcingPartner  @relation(fields: [outsourcingPartnerId], references: [id], onDelete: Cascade)
+
+  createdAt             DateTime            @default(now())
+
+  @@unique([projectId, outsourcingPartnerId])
+  @@map("project_outsourcing_partners")
+}
+
+model RegularContactTemplate {
+  id          Int      @id @default(autoincrement())
+  title       String
+  content     String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  histories RegularContactHistory[]
+
+  @@map("regular_contact_templates")
+}
+
+model RegularContactHistory {
+  id          Int      @id @default(autoincrement())
+  templateId  Int
+  title       String
+  content     String
+  year        Int
+  month       Int
+  createdAt   DateTime @default(now())
+
+  template RegularContactTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, year, month])
+  @@map("regular_contact_histories")
+}
