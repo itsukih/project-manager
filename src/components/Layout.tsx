@@ -10,13 +10,15 @@ import {
   BarChart3,
   FileText,
   Menu,
-  X
+  X,
+  LayoutGrid
 } from 'lucide-react';
 import { useState } from 'react';
 import { clsx } from 'clsx';
 
 const navigation = [
   { name: '案件一覧', href: '/', icon: Briefcase },
+  { name: '案件ボード', href: '/board', icon: LayoutGrid },
   { name: 'ガントチャート', href: '/gantt', icon: Calendar },
   { name: 'クライアント管理', href: '/clients', icon: Users },
   { name: '外注パートナー管理', href: '/partners', icon: Building2 },
