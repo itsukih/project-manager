@@ -2,10 +2,34 @@
 
 Web制作会社・フリーランス向けの案件・クライアント管理システムです。Next.js + Prisma + SQLite で構築されており、ローカル環境で動作します。
 
+## 🚀 クイックスタート
+
+```bash
+# リポジトリをクローン
+git clone https://github.com/itsukih/project-manager.git
+cd project-manager
+
+# develop ブランチに切り替え
+git checkout develop
+
+# 依存関係をインストール
+npm install
+
+# データベースをセットアップ
+npx prisma migrate dev
+npx prisma generate
+
+# 開発サーバーを起動
+npm run dev
+```
+
+ブラウザで http://localhost:3000 にアクセスしてください。
+
 ## 主な機能
 
 ### 📋 案件管理
 - 案件の新規登録・編集・削除
+- **案件ボード（カンバンビュー）** - ドラッグ&ドロップで営業ステータスを変更
 - 営業ステータス管理（相談中、お見積り提示中、**受注確定**、進行中、納品、連絡待ち、失注）
 - 進行ステータス管理（未着手、デザイン中、コーディング中、確認中、修正中、納品済）
 - スケジュール管理（相談日、受注日、着手日、初稿日、納品日）
@@ -62,22 +86,35 @@ Web制作会社・フリーランス向けの案件・クライアント管理�
 - **フォーム**: React Hook Form + Zod
 - **日付**: react-datepicker + date-fns
 
-## セットアップ手順
+## 💻 必要な環境
 
-### 1. 依存関係のインストール
+- Node.js 18.x 以上
+- npm または yarn
+
+## セットアップ手順（詳細）
+
+### 1. リポジトリのクローン
+
+```bash
+git clone https://github.com/itsukih/project-manager.git
+cd project-manager
+git checkout develop
+```
+
+### 2. 依存関係のインストール
 
 ```bash
 npm install
 ```
 
-### 2. データベースの初期化
+### 3. データベースの初期化
 
 ```bash
-npx prisma migrate dev --name init
+npx prisma migrate dev
 npx prisma generate
 ```
 
-### 3. 開発サーバーの起動
+### 4. 開発サーバーの起動
 
 ```bash
 npm run dev
@@ -152,11 +189,36 @@ project-manager/
 
 - 「集計・分析」ページで年別の売上データや案件状況を確認できます
 
+## 🤝 他の人と共有する方法
+
+### 方法1: GitHub リポジトリを公開
+
+1. [リポジトリ設定](https://github.com/itsukih/project-manager/settings) にアクセス
+2. 「Danger Zone」→「Change visibility」→「Make public」をクリック
+3. 相手に以下のURLとセットアップ手順を共有：
+   ```
+   https://github.com/itsukih/project-manager
+   ```
+
+### 方法2: コラボレーターとして招待（プライベートのまま）
+
+1. [アクセス管理](https://github.com/itsukih/project-manager/settings/access) にアクセス
+2. 「Invite a collaborator」で相手の GitHub ユーザー名を追加
+3. 相手がリポジトリにアクセスできるようになります
+
+### 方法3: ZIP ファイルで共有
+
+```bash
+# プロジェクトをZIPで圧縮（データベースファイルを除外）
+git archive --format=zip --output=project-manager.zip develop
+```
+
+相手は ZIP を解凍後、上記のセットアップ手順を実行します。
+
 ## 今後の拡張予定
 
 - ガントチャートのドラッグ&ドロップ機能
 - 月別売上グラフの実装
-- CSVエクスポート機能
 - バックアップ・復元機能
 - 通知・リマインダー機能
 
