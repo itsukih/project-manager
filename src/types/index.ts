@@ -1,4 +1,4 @@
-import { Project, Client, OutsourcingPartner, SalesStatus, ProgressStatus, PartnerType } from '@prisma/client';
+import { Project, Client, OutsourcingPartner, SalesStatus, ProgressStatus, PartnerType, Task, TaskCategory, TaskPriority, TaskStatus } from '@prisma/client';
 
 export type ProjectWithRelations = Project & {
   client: Client;
@@ -7,7 +7,13 @@ export type ProjectWithRelations = Project & {
   }[];
 };
 
-export { SalesStatus, ProgressStatus, Client, OutsourcingPartner, PartnerType };
+export type TaskWithRelations = Task & {
+  project?: Project;
+  parent?: Task;
+  subTasks?: Task[];
+};
+
+export { SalesStatus, ProgressStatus, Client, OutsourcingPartner, PartnerType, Task, TaskCategory, TaskPriority, TaskStatus };
 
 export const SALES_STATUS_LABELS = {
   CONSULTING: '相談中',
@@ -34,12 +40,15 @@ export const PARTNER_TYPE_LABELS = {
 } as const;
 
 export const STATUS_OPTIONS = [
-  '未接触',
+  '案件受注済み',
+  '継続案件',
+  '業務委託契約',
+  'チャット',
   '面談済み',
-  '提案中',
-  '受注',
-  '失注',
-  '継続中'
+  'メールやりとりのみ',
+  'お祈りメール',
+  '案件対応中',
+  '案件断る'
 ] as const;
 
 export const RANK_OPTIONS = ['VIP', 'A', 'B', 'C', 'D', 'E'] as const;
@@ -54,12 +63,18 @@ export const RANK_DESCRIPTIONS: Record<string, string> = {
 };
 
 export const CONTACT_TYPE_OPTIONS = [
-  'メール',
-  '電話',
-  '対面',
-  'オンライン',
+  'EMAIL',
+  'CHATWORK',
+  'SLACK',
   'SNS'
 ] as const;
+
+export const CONTACT_TYPE_LABELS: Record<string, string> = {
+  EMAIL: 'メール',
+  CHATWORK: 'Chatwork',
+  SLACK: 'Slack',
+  SNS: 'SNS'
+};
 
 export interface RegularContactTemplate {
   id: number;
@@ -81,3 +96,22 @@ export interface RegularContactHistory {
   createdAt: Date;
   template?: RegularContactTemplate;
 }
+
+export const TASK_CATEGORY_LABELS = {
+  PROJECT: '案件',
+  ADMIN: '事務',
+  SALES: '営業',
+  OTHER: 'その他',
+} as const;
+
+export const TASK_PRIORITY_LABELS = {
+  URGENT: '🔴 緊急',
+  HIGH: '🟠 高',
+  MEDIUM: '🟡 中',
+  LOW: '🟢 低',
+} as const;
+
+export const TASK_STATUS_LABELS = {
+  PENDING: '未対応',
+  IN_PROGRESS: '対応中',
+} as const;

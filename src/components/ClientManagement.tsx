@@ -5,7 +5,7 @@ import { Plus, Edit, Trash2, Download } from 'lucide-react';
 import { useClients } from '@/hooks/useClients';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
-import { Client, STATUS_OPTIONS, RANK_OPTIONS, RANK_DESCRIPTIONS, CONTACT_TYPE_OPTIONS } from '@/types';
+import { Client, STATUS_OPTIONS, RANK_OPTIONS, RANK_DESCRIPTIONS, CONTACT_TYPE_OPTIONS, CONTACT_TYPE_LABELS } from '@/types';
 import { getCurrentMonth } from '@/lib/dateUtils';
 
 export function ClientManagement() {
@@ -22,7 +22,7 @@ export function ClientManagement() {
     name: '',
     homepageUrl: '',
     contactPerson: '',
-    status: '未接触',
+    status: [] as string[],
     rank: 'C',
     history: '',
     salesIdea: '',
@@ -49,7 +49,7 @@ export function ClientManagement() {
       name: '',
       homepageUrl: '',
       contactPerson: '',
-      status: '未接触',
+      status: [],
       rank: 'C',
       history: '',
       salesIdea: '',
@@ -86,7 +86,7 @@ export function ClientManagement() {
       name: client.name,
       homepageUrl: client.homepageUrl || '',
       contactPerson: client.contactPerson || '',
-      status: client.status,
+      status: typeof client.status === 'string' ? JSON.parse(client.status || '[]') : [],
       rank: client.rank,
       history: client.history || '',
       salesIdea: client.salesIdea || '',
@@ -152,6 +152,17 @@ export function ClientManagement() {
     }
   };
 
+  const handleStatusChange = (statusOption: string) => {
+    setFormData(prev => {
+      const currentStatus = prev.status;
+      if (currentStatus.includes(statusOption)) {
+        return { ...prev, status: currentStatus.filter(s => s !== statusOption) };
+      } else {
+        return { ...prev, status: [...currentStatus, statusOption] };
+      }
+    });
+  };
+
   const handleSave = async () => {
     if (!formData.name.trim()) {
       alert('会社名を入力してください');
@@ -171,6 +182,7 @@ export function ClientManagement() {
         },
         body: JSON.stringify({
           ...formData,
+          status: JSON.stringify(formData.status),
           firstContact: formData.firstContact || null,
           meetingDate: formData.meetingDate || null,
           contractDate: formData.contractDate || null,
@@ -401,18 +413,20 @@ export function ClientManagement() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">状況 *</label>
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-                >
+                <label className="block text-sm font-medium text-gray-700 mb-2">状況 *</label>
+                <div className="grid grid-cols-2 gap-2">
                   {STATUS_OPTIONS.map(status => (
-                    <option key={status} value={status}>{status}</option>
+                    <label key={status} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.status.includes(status)}
+                        onChange={() => handleStatusChange(status)}
+                        className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                      />
+                      <span className="text-sm">{status}</span>
+                    </label>
                   ))}
-                </select>
+                </div>
               </div>
 
               <div>
@@ -440,7 +454,7 @@ export function ClientManagement() {
                 >
                   <option value="">選択してください</option>
                   {CONTACT_TYPE_OPTIONS.map(type => (
-                    <option key={type} value={type}>{type}</option>
+                    <option key={type} value={type}>{CONTACT_TYPE_LABELS[type]}</option>
                   ))}
                 </select>
               </div>
@@ -690,7 +704,7 @@ function ClientCard({ client, onEdit, onDelete, currentMonth }: {
       </div>
 
       <div className="text-sm text-gray-600 mb-2">
-        <div>状況: {client.status}</div>
+        <div>状況: {typeof client.status === 'string' ? JSON.parse(client.status || '[]').join(', ') : ''}</div>
         {client.contactPerson && <div>担当者: {client.contactPerson}</div>}
       </div>
 
