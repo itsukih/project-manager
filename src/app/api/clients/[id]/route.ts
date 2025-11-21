@@ -97,16 +97,10 @@ export async function DELETE(
       return NextResponse.json({ error: 'Invalid client ID' }, { status: 400 });
     }
 
-    const projectsCount = await prisma.project.count({
+    // 関連する案件も一緒に削除（カスケード削除）
+    await prisma.project.deleteMany({
       where: { clientId: id },
     });
-
-    if (projectsCount > 0) {
-      return NextResponse.json(
-        { error: 'Cannot delete client with existing projects' },
-        { status: 400 }
-      );
-    }
 
     await prisma.client.delete({
       where: { id },
