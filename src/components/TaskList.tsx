@@ -71,17 +71,40 @@ export function TaskList({ categoryFilter }: TaskListProps) {
 
   const handleToggleComplete = async (task: TaskWithRelations) => {
     try {
-      const response = await fetch(`/api/tasks/${task.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...task,
-          completed: !task.completed,
-          projectId: task.projectId || undefined,
-        }),
-      });
+      const isCompleting = !task.completed;
 
-      if (!response.ok) throw new Error('Failed to update task');
+      // 完了する場合は、リストの最後に移動
+      if (isCompleting) {
+        // すべてのタスクのorderを取得して最大値を計算
+        const maxOrder = Math.max(...tasks.map(t => t.order), 0);
+
+        const response = await fetch(`/api/tasks/${task.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...task,
+            completed: true,
+            order: maxOrder + 1,
+            projectId: task.projectId || undefined,
+          }),
+        });
+
+        if (!response.ok) throw new Error('Failed to update task');
+      } else {
+        // 未完了に戻す場合は通常の更新
+        const response = await fetch(`/api/tasks/${task.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...task,
+            completed: false,
+            projectId: task.projectId || undefined,
+          }),
+        });
+
+        if (!response.ok) throw new Error('Failed to update task');
+      }
+
       fetchTasks();
     } catch (err) {
       alert('タスクの更新に失敗しました');
@@ -182,11 +205,27 @@ export function TaskList({ categoryFilter }: TaskListProps) {
     );
   }
 
-  // タスクをstatus基準で分類
+  // 24時間以上前の完了タスクを除外
+  const filteredTasks = tasks.filter(task => {
+    // 未完了タスクは常に表示
+    if (!task.completed) return true;
+
+    // completedAtがない場合は表示（安全策）
+    if (!task.completedAt) return true;
+
+    const completedAt = new Date(task.completedAt);
+    const now = new Date();
+    const hoursSinceCompletion = (now.getTime() - completedAt.getTime()) / (1000 * 60 * 60);
+
+    // 24時間以内の完了タスクのみ表示
+    return hoursSinceCompletion < 24;
+  });
+
+  // タスクをstatus基準で分類（フィルタリング適用）
   const tasksByStatus = {
-    pending: tasks.filter(t => t.status === 'PENDING' && !t.completed),
-    inProgress: tasks.filter(t => t.status === 'IN_PROGRESS' && !t.completed),
-    completed: tasks.filter(t => t.completed),
+    pending: filteredTasks.filter(t => t.status === 'PENDING' && !t.completed),
+    inProgress: filteredTasks.filter(t => t.status === 'IN_PROGRESS' && !t.completed),
+    completed: filteredTasks.filter(t => t.completed),
   };
 
   // ドラッグ&ドロップでステータス変更
@@ -222,11 +261,49 @@ export function TaskList({ categoryFilter }: TaskListProps) {
     e.dataTransfer.dropEffect = 'move';
   };
 
-  const handleBoardDrop = async (e: React.DragEvent, newStatus: 'PENDING' | 'IN_PROGRESS') => {
+  const handleBoardDrop = async (e: React.DragEvent, newStatus: 'PENDING' | 'IN_PROGRESS', dropIndex?: number) => {
     e.preventDefault();
     const taskId = parseInt(e.dataTransfer.getData('taskId'));
-    if (taskId) {
+    if (!taskId) return;
+
+    const draggedTaskItem = tasks.find(t => t.id === taskId);
+    if (!draggedTaskItem) return;
+
+    // ステータスが変わる場合
+    if (draggedTaskItem.status !== newStatus) {
       await handleStatusChange(taskId, newStatus);
+    }
+    // 同じステータス内での並び替え
+    else if (dropIndex !== undefined) {
+      const statusTasks = tasks.filter(t => t.status === newStatus && !t.completed);
+      const dragIndex = statusTasks.findIndex(t => t.id === taskId);
+
+      if (dragIndex === dropIndex) return;
+
+      // 並び替え後の順序を計算
+      const reorderedTasks = [...statusTasks];
+      const [removed] = reorderedTasks.splice(dragIndex, 1);
+      reorderedTasks.splice(dropIndex, 0, removed);
+
+      // order を更新
+      const taskOrders = reorderedTasks.map((task, index) => ({
+        id: task.id,
+        order: index,
+      }));
+
+      try {
+        const response = await fetch('/api/tasks/reorder', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ taskOrders }),
+        });
+
+        if (!response.ok) throw new Error('Failed to reorder tasks');
+        fetchTasks();
+      } catch (err) {
+        alert('並び替えに失敗しました');
+        fetchTasks();
+      }
     }
   };
 
@@ -237,7 +314,7 @@ export function TaskList({ categoryFilter }: TaskListProps) {
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
             <h2 className="text-2xl font-bold text-gray-900">タスク管理</h2>
-            <span className="text-sm text-gray-500">{tasks.length}件</span>
+            <span className="text-sm text-gray-500">{filteredTasks.length}件</span>
           </div>
 
           {/* 表示切り替えタブ */}
@@ -268,6 +345,7 @@ export function TaskList({ categoryFilter }: TaskListProps) {
             </button>
           </div>
         </div>
+
         <Button onClick={handleCreate} className="flex items-center space-x-2">
           <Plus className="h-4 w-4" />
           <span>新規タスク</span>
@@ -278,7 +356,7 @@ export function TaskList({ categoryFilter }: TaskListProps) {
       {viewMode === 'list' ? (
         /* リスト表示 */
         <div className="space-y-2">
-          {tasks.length === 0 ? (
+          {filteredTasks.length === 0 ? (
             <div className="text-center py-12 bg-gray-50 rounded-lg">
               <div className="text-gray-500 mb-4">タスクがありません</div>
               <Button onClick={handleCreate}>
@@ -287,7 +365,7 @@ export function TaskList({ categoryFilter }: TaskListProps) {
               </Button>
             </div>
           ) : (
-          tasks.map((task, index) => (
+          filteredTasks.map((task, index) => (
             <div key={task.id}>
               {/* メインタスク */}
               <div
@@ -532,11 +610,16 @@ export function TaskList({ categoryFilter }: TaskListProps) {
               onDrop={(e) => handleBoardDrop(e, 'PENDING')}
               className="space-y-2 min-h-[200px]"
             >
-              {tasksByStatus.pending.map((task) => (
+              {tasksByStatus.pending.map((task, index) => (
                 <div
                   key={task.id}
                   draggable
                   onDragStart={(e) => handleBoardDragStart(e, task)}
+                  onDragOver={handleBoardDragOver}
+                  onDrop={(e) => {
+                    e.stopPropagation();
+                    handleBoardDrop(e, 'PENDING', index);
+                  }}
                   className="bg-white rounded-lg border p-3 hover:shadow-md transition-shadow cursor-move"
                 >
                   <div className="flex items-start gap-2">
@@ -582,11 +665,16 @@ export function TaskList({ categoryFilter }: TaskListProps) {
               onDrop={(e) => handleBoardDrop(e, 'IN_PROGRESS')}
               className="space-y-2 min-h-[200px]"
             >
-              {tasksByStatus.inProgress.map((task) => (
+              {tasksByStatus.inProgress.map((task, index) => (
                 <div
                   key={task.id}
                   draggable
                   onDragStart={(e) => handleBoardDragStart(e, task)}
+                  onDragOver={handleBoardDragOver}
+                  onDrop={(e) => {
+                    e.stopPropagation();
+                    handleBoardDrop(e, 'IN_PROGRESS', index);
+                  }}
                   className="bg-white rounded-lg border border-blue-200 p-3 hover:shadow-md transition-shadow cursor-move"
                 >
                   <div className="flex items-start gap-2">

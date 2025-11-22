@@ -13,7 +13,8 @@ import {
   X,
   LayoutGrid,
   CheckSquare,
-  CalendarDays
+  CalendarDays,
+  Folder
 } from 'lucide-react';
 import { useState } from 'react';
 import { clsx } from 'clsx';
@@ -21,12 +22,13 @@ import { clsx } from 'clsx';
 const navigation = [
   { name: '案件一覧', href: '/', icon: Briefcase },
   { name: '案件ボード', href: '/board', icon: LayoutGrid },
+  { name: 'ガントチャート', href: '/gantt', icon: Calendar },
   { name: 'タスク管理', href: '/tasks', icon: CheckSquare },
   { name: 'カレンダー', href: '/calendar', icon: CalendarDays },
-  { name: 'ガントチャート', href: '/gantt', icon: Calendar },
   { name: 'クライアント管理', href: '/clients', icon: Users },
   { name: '外注パートナー管理', href: '/partners', icon: Building2 },
   { name: '定期連絡テンプレート', href: '/regular-contacts', icon: FileText },
+  { name: 'テンプレート管理', href: '/templates', icon: Folder },
   { name: '集計・分析', href: '/analytics', icon: BarChart3 },
 ];
 

@@ -1,5 +1,9 @@
 import { TaskList } from '@/components/TaskList';
 
 export default function TasksPage() {
-  return <TaskList />;
+  return (
+    <div className="space-y-6">
+      <TaskList />
+    </div>
+  );
 }

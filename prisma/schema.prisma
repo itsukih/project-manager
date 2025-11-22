@@ -105,6 +105,7 @@ model Project {
   updatedAt                 DateTime  @updatedAt
 
   tasks                     Task[]
+  phases                    ProjectPhase[]
 
   @@map("projects")
 }
@@ -223,4 +224,58 @@ enum ContactType {
   CHATWORK     // Chatwork
   SLACK        // Slack
   SNS          // SNS
+}
+
+model ProjectPhase {
+  id              Int              @id @default(autoincrement())
+  projectId       Int
+  project         Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  type            PhaseType        @default(DESIGN)
+  name            String           // 工程名（例: デザイン、コーディング）
+
+  // 日程管理
+  startDate       DateTime?        // 着手日
+  firstDraftDate  DateTime?        // 初稿日
+  deliveryDate    DateTime?        // 納品日
+
+  // 進捗管理
+  status          PhaseStatus      @default(NOT_STARTED)
+
+  // 補足情報
+  notes           String?
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@map("project_phases")
+}
+
+enum PhaseType {
+  DESIGN          // デザイン
+  CODING          // コーディング
+  OTHER           // その他
+}
+
+enum PhaseStatus {
+  NOT_STARTED     // 未着手
+  IN_PROGRESS     // 進行中
+  FIRST_DRAFT     // 初稿提出済み
+  REVISING        // 修正中
+  COMPLETED       // 完了
+}
+
+// テンプレート管理
+model Template {
+  id          Int      @id @default(autoincrement())
+  name        String   // テンプレート名
+  description String?  // 説明
+  url         String?  // URL（Googleスプレッドシートなど）
+  pdfPath     String?  // PDFファイルパス
+  pdfName     String?  // PDFファイル名
+  category    String   @default("その他") // カテゴリ（案件管理、請求書、契約書など）
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("templates")
 }

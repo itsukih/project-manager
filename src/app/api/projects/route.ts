@@ -55,6 +55,11 @@ export async function GET(request: NextRequest) {
             outsourcingPartner: true,
           },
         },
+        phases: {
+          orderBy: {
+            createdAt: 'asc',
+          },
+        },
       },
       orderBy,
     });

@@ -13,6 +13,7 @@ import { useClients } from '@/hooks/useClients';
 import { useOutsourcingPartners } from '@/hooks/useOutsourcingPartners';
 import { ProjectWithRelations, SalesStatus, ProgressStatus } from '@/types';
 import { addMonths, endOfMonth } from 'date-fns';
+import { ProjectPhases } from '@/components/ProjectPhases';
 
 const projectSchema = z.object({
   name: z.string().min(1, '案件名は必須です'),
@@ -308,6 +309,17 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
             </div>
           </div>
         </div>
+
+        {/* 工程管理 */}
+        {project && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium text-gray-900">工程管理</h3>
+              <p className="text-sm text-gray-500">デザイン・コーディングなど工程ごとの日程を管理</p>
+            </div>
+            <ProjectPhases projectId={project.id} />
+          </div>
+        )}
 
         {/* 外注・共有 */}
         <div className="space-y-4">

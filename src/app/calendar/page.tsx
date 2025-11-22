@@ -218,9 +218,9 @@ export default function CalendarPage() {
       </div>
 
       {/* カレンダーグリッド */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-200">
         {/* 曜日ヘッダー */}
-        <div className="grid grid-cols-7 border-b">
+        <div className="grid grid-cols-7 border-b border-gray-200">
           {['日', '月', '火', '水', '木', '金', '土'].map((day, i) => (
             <div
               key={day}
@@ -240,7 +240,7 @@ export default function CalendarPage() {
           const taskBars = getTaskBarsForWeek(weekStart);
 
           return (
-            <div key={weekIndex} className="border-b last:border-b-0">
+            <div key={weekIndex} className="border-b border-gray-200 last:border-b-0">
               {/* 日付セル */}
               <div className="grid grid-cols-7 relative">
                 {weekDays.map((day, dayIndex) => {
@@ -251,7 +251,7 @@ export default function CalendarPage() {
                   return (
                     <div
                       key={dayIndex}
-                      className={`min-h-[100px] border-r last:border-r-0 p-2 ${
+                      className={`min-h-[100px] border-r border-gray-200 last:border-r-0 p-2 ${
                         !isCurrentMonth ? 'bg-gray-50' : 'bg-white'
                       }`}
                     >

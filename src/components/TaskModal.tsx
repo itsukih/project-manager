@@ -14,6 +14,13 @@ interface TaskModalProps {
   parentTask?: TaskWithRelations;
 }
 
+// UTCの日時をローカルタイムゾーンのdatetime-local形式に変換
+function formatDateTimeLocal(date: Date): string {
+  const offset = date.getTimezoneOffset() * 60000;
+  const localDate = new Date(date.getTime() - offset);
+  return localDate.toISOString().slice(0, 16);
+}
+
 export function TaskModal({ isOpen, onClose, task, parentTask }: TaskModalProps) {
   const [formData, setFormData] = useState({
     title: '',
@@ -40,8 +47,8 @@ export function TaskModal({ isOpen, onClose, task, parentTask }: TaskModalProps)
         priority: task.priority,
         status: task.status,
         projectId: task.projectId,
-        startDate: task.startDate ? new Date(task.startDate).toISOString().slice(0, 16) : '',
-        dueDate: task.dueDate ? new Date(task.dueDate).toISOString().slice(0, 16) : '',
+        startDate: task.startDate ? formatDateTimeLocal(new Date(task.startDate)) : '',
+        dueDate: task.dueDate ? formatDateTimeLocal(new Date(task.dueDate)) : '',
         isAllDay: task.isAllDay || false,
         subTaskInput: '',
       });

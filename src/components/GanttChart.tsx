@@ -5,17 +5,46 @@ import { useProjects } from '@/hooks/useProjects';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ProjectWithRelations, SALES_STATUS_LABELS } from '@/types';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isWithinInterval } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
 import { ja } from 'date-fns/locale';
+
+interface ProjectPhase {
+  id: number;
+  projectId: number;
+  type: 'DESIGN' | 'CODING' | 'OTHER';
+  name: string;
+  startDate: string | null;
+  firstDraftDate: string | null;
+  deliveryDate: string | null;
+  status: string;
+}
 
 export function GanttChart() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const { projects, loading, error } = useProjects();
 
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const source = e.currentTarget;
+    const scrollTop = source.scrollTop;
+
+    // 左右のスクロール位置を同期
+    const leftPane = document.getElementById('gantt-left-pane');
+    const rightPane = document.getElementById('gantt-right-pane');
+
+    if (leftPane && source !== leftPane) {
+      leftPane.scrollTop = scrollTop;
+    }
+    if (rightPane && source !== rightPane) {
+      rightPane.scrollTop = scrollTop;
+    }
+  };
+
   const getProjectsWithDates = () => {
-    return projects.filter(project =>
-      project.startDate || project.deliveryDate || project.consultationDate
-    );
+    return projects.filter(project => {
+      const hasProjectDates = project.startDate || project.deliveryDate || project.consultationDate;
+      const hasPhases = project.phases && project.phases.length > 0;
+      return hasProjectDates || hasPhases;
+    });
   };
 
   const getDaysInMonth = () => {
@@ -24,17 +53,17 @@ export function GanttChart() {
     return eachDayOfInterval({ start, end });
   };
 
-  const getProjectBarStyle = (project: ProjectWithRelations, days: Date[]) => {
-    const startDate = project.startDate ? new Date(project.startDate) : null;
-    const deliveryDate = project.deliveryDate ? new Date(project.deliveryDate) : null;
+  const getBarStyle = (startDateStr: string | null, endDateStr: string | null, days: Date[]) => {
+    const startDate = startDateStr ? new Date(startDateStr) : null;
+    const endDate = endDateStr ? new Date(endDateStr) : null;
 
-    if (!startDate && !deliveryDate) return null;
+    if (!startDate && !endDate) return null;
 
     const monthStart = days[0];
     const monthEnd = days[days.length - 1];
 
-    const effectiveStart = startDate || deliveryDate;
-    const effectiveEnd = deliveryDate || startDate;
+    const effectiveStart = startDate || endDate;
+    const effectiveEnd = endDate || startDate;
 
     if (!effectiveStart || !effectiveEnd) return null;
 
@@ -46,10 +75,21 @@ export function GanttChart() {
     const startIndex = days.findIndex(day => isSameDay(day, barStart));
     const endIndex = days.findIndex(day => isSameDay(day, barEnd));
 
-    const left = startIndex * 25; // 25px per day
-    const width = (endIndex - startIndex + 1) * 25; // 25px per day
+    if (startIndex === -1 || endIndex === -1) return null;
+
+    const left = startIndex * 25;
+    const width = (endIndex - startIndex + 1) * 25;
 
     return { left: `${left}px`, width: `${width}px` };
+  };
+
+  const getPhaseColor = (type: string) => {
+    switch (type) {
+      case 'DESIGN': return { bg: 'bg-pink-200', text: 'text-pink-800' };
+      case 'CODING': return { bg: 'bg-blue-200', text: 'text-blue-800' };
+      case 'OTHER': return { bg: 'bg-gray-200', text: 'text-gray-800' };
+      default: return { bg: 'bg-gray-200', text: 'text-gray-800' };
+    }
   };
 
   const getStatusColor = (salesStatus: string) => {
@@ -138,37 +178,58 @@ export function GanttChart() {
             </div>
           </div>
         ) : (
-          <div className="flex max-h-[600px]">
+          <div className="flex max-h-[600px] border border-gray-200">
             {/* 左側: 案件名リスト */}
             <div className="w-64 flex-shrink-0 bg-gray-50 border-r border-gray-200">
               {/* ヘッダー */}
-              <div className="p-4 border-b border-gray-200 bg-gray-50">
-                <div className="text-sm font-medium text-gray-900">案件名</div>
+              <div className="flex items-center border-b border-gray-200 bg-gray-50" style={{ height: '44px' }}>
+                <div className="px-4 text-sm font-medium text-gray-900">案件名</div>
               </div>
 
-              {/* プロジェクト名リスト - 固定高さで対応 */}
-              <div className="max-h-[550px] overflow-y-auto">
-                {getProjectsWithDates().map((project) => (
-                  <div key={project.id} className="p-4 border-b border-gray-100 hover:bg-gray-100">
-                    <div className="text-sm font-medium text-gray-900 truncate" title={project.name}>
-                      {project.name}
+              {/* プロジェクト名リスト */}
+              <div id="gantt-left-pane" className="max-h-[600px] overflow-y-auto" onScroll={handleScroll}>
+                {getProjectsWithDates().map((project, projectIndex) => {
+                  const phases = (project.phases || []) as ProjectPhase[];
+                  const rowCount = 1 + phases.length;
+                  const rowHeight = 72;
+
+                  return (
+                    <div
+                      key={project.id}
+                      style={{ height: `${rowCount * rowHeight}px` }}
+                      className={`border-b-2 border-gray-300 ${projectIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
+                    >
+                      {/* 案件全体の行 */}
+                      <div className="p-4 hover:bg-gray-100 flex flex-col justify-center" style={{ height: `${rowHeight}px` }}>
+                        <div className="text-sm font-bold text-gray-900 truncate" title={project.name}>
+                          {project.name}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1 truncate" title={project.client.name}>
+                          {project.client.name}
+                        </div>
+                      </div>
+
+                      {/* 工程の行 */}
+                      {phases.map((phase) => {
+                        const colors = getPhaseColor(phase.type);
+                        return (
+                          <div
+                            key={phase.id}
+                            className="px-4 py-2 hover:bg-gray-100 border-t border-gray-200 flex items-center"
+                            style={{ height: `${rowHeight}px` }}
+                          >
+                            <div className="flex items-center space-x-2 ml-4">
+                              <span className={`inline-block px-2 py-0.5 text-xs font-medium ${colors.bg} ${colors.text} rounded`}>
+                                {phase.type === 'DESIGN' ? 'デザイン' : phase.type === 'CODING' ? 'コーディング' : 'その他'}
+                              </span>
+                              <span className="text-xs text-gray-600 truncate">{phase.name}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <div className="text-xs text-gray-500 mt-1 truncate" title={project.client.name}>
-                      {project.client.name}
-                    </div>
-                    <div className="mt-1">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                        project.salesStatus === 'DELIVERED'
-                          ? 'bg-green-100 text-green-800'
-                          : project.salesStatus === 'LOST'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {SALES_STATUS_LABELS[project.salesStatus]}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -176,11 +237,11 @@ export function GanttChart() {
             <div className="flex-1 overflow-x-auto">
               <div style={{ minWidth: `${getDaysInMonth().length * 25}px` }}>
                 {/* カレンダーヘッダー */}
-                <div className="flex p-2 border-b border-gray-200 bg-white">
-                  {getDaysInMonth().map((day, index) => (
+                <div className="flex border-b border-gray-200 bg-white" style={{ height: '44px' }}>
+                  {getDaysInMonth().map((day) => (
                     <div
                       key={day.getTime()}
-                      className={`text-center text-xs p-1 border-r border-gray-100 ${
+                      className={`text-center text-xs flex items-center justify-center border-r border-gray-200 ${
                         isSameDay(day, new Date()) ? 'bg-blue-100 text-blue-800' : 'text-gray-500'
                       }`}
                       style={{ minWidth: '25px', width: '25px' }}
@@ -191,51 +252,81 @@ export function GanttChart() {
                 </div>
 
                 {/* プロジェクト行のカレンダー部分 */}
-                <div className="max-h-[550px] overflow-y-auto">
-                  {getProjectsWithDates().map((project) => {
+                <div id="gantt-right-pane" className="max-h-[600px] overflow-y-auto" onScroll={handleScroll}>
+                  {getProjectsWithDates().map((project, projectIndex) => {
                     const days = getDaysInMonth();
-                    const barStyle = getProjectBarStyle(project, days);
+                    const phases = (project.phases || []) as ProjectPhase[];
+                    const rowCount = 1 + phases.length;
+                    const rowHeight = 72;
 
                     return (
-                      <div key={project.id} className="p-2 border-b border-gray-100 hover:bg-gray-50">
-                        <div className="relative h-10">
-                          {barStyle && (
-                            <div
-                              className={`absolute top-1 h-6 rounded ${getStatusColor(project.salesStatus)} opacity-80 flex items-center`}
-                              style={barStyle}
-                              title={`${project.name}: ${
-                                project.startDate ? format(new Date(project.startDate), 'M/d', { locale: ja }) : ''
-                              } - ${
-                                project.deliveryDate ? format(new Date(project.deliveryDate), 'M/d', { locale: ja }) : ''
-                              }`}
-                            >
-                              <div className="text-xs text-white px-2 truncate overflow-hidden">
-                                {project.name}
-                              </div>
-                            </div>
-                          )}
-                          {/* マイルストーン表示 */}
-                          {[
-                            { date: project.consultationDate, label: '相談', color: 'bg-yellow-400' },
-                            { date: project.orderDate, label: '受注', color: 'bg-blue-400' },
-                            { date: project.firstDraftDate, label: '初稿', color: 'bg-purple-400' },
-                          ].map(({ date, label, color }, index) => {
-                            if (!date) return null;
-                            const milestoneDate = new Date(date);
-                            const dayIndex = days.findIndex(day => isSameDay(day, milestoneDate));
-                            if (dayIndex === -1) return null;
-
-                            const left = (dayIndex * 25) + 12.5; // 25px幅の中央に配置
-                            return (
-                              <div
-                                key={index}
-                                className={`absolute w-3 h-3 ${color} rounded-full border-2 border-white shadow-sm z-20`}
-                                style={{ left: `${left}px`, top: '16px' }}
-                                title={`${label}: ${format(milestoneDate, 'M/d', { locale: ja })}`}
-                              />
-                            );
-                          })}
+                      <div
+                        key={project.id}
+                        style={{ height: `${rowCount * rowHeight}px` }}
+                        className={`border-b-2 border-gray-300 ${projectIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
+                      >
+                        {/* 案件全体のバー */}
+                        <div className="hover:bg-gray-100 flex items-center justify-center" style={{ height: `${rowHeight}px` }}>
+                          <div className="relative w-full" style={{ height: '40px' }}>
+                            {(() => {
+                              const barStyle = getBarStyle(project.startDate, project.deliveryDate, days);
+                              if (!barStyle) return null;
+                              return (
+                                <div
+                                  className={`absolute rounded ${getStatusColor(project.salesStatus)} opacity-60 flex items-center`}
+                                  style={{ ...barStyle, top: '0', height: '40px' }}
+                                  title={`${project.name}: 全体期間`}
+                                >
+                                  <div className="text-sm text-white px-2 truncate overflow-hidden">
+                                    全体
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </div>
                         </div>
+
+                        {/* 工程別のバー */}
+                        {phases.map((phase) => (
+                          <div
+                            key={phase.id}
+                            className="hover:bg-gray-100 border-t border-gray-200 flex items-center justify-center"
+                            style={{ height: `${rowHeight}px` }}
+                          >
+                            <div className="relative w-full" style={{ height: '40px' }}>
+                              {(() => {
+                                const barStyle = getBarStyle(phase.startDate, phase.deliveryDate, days);
+                                if (!barStyle) return null;
+                                const colors = getPhaseColor(phase.type);
+                                return (
+                                  <div
+                                    className={`absolute rounded ${colors.bg} flex items-center`}
+                                    style={{ ...barStyle, top: '0', height: '40px' }}
+                                    title={`${phase.name}: ${phase.startDate ? format(new Date(phase.startDate), 'M/d', { locale: ja }) : ''} - ${phase.deliveryDate ? format(new Date(phase.deliveryDate), 'M/d', { locale: ja }) : ''}`}
+                                  >
+                                    <div className={`text-sm ${colors.text} px-2 truncate overflow-hidden font-medium`}>
+                                      {phase.name}
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                              {/* 初稿日マーカー */}
+                              {phase.firstDraftDate && (() => {
+                                const milestoneDate = new Date(phase.firstDraftDate);
+                                const dayIndex = days.findIndex(day => isSameDay(day, milestoneDate));
+                                if (dayIndex === -1) return null;
+                                const left = (dayIndex * 25) + 12.5;
+                                return (
+                                  <div
+                                    className="absolute w-3 h-3 bg-yellow-400 rounded-full border-2 border-white shadow-sm z-20"
+                                    style={{ left: `${left}px`, top: '18px' }}
+                                    title={`初稿: ${format(milestoneDate, 'M/d', { locale: ja })}`}
+                                  />
+                                );
+                              })()}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     );
                   })}
@@ -251,31 +342,19 @@ export function GanttChart() {
         <h3 className="text-sm font-medium text-gray-900 mb-3">凡例</h3>
         <div className="flex flex-wrap gap-4">
           <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-yellow-500 rounded"></div>
-            <span className="text-sm text-gray-600">相談中</span>
+            <div className="w-4 h-4 bg-pink-200 rounded border border-pink-300"></div>
+            <span className="text-sm text-gray-600">デザイン工程</span>
           </div>
           <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-blue-500 rounded"></div>
-            <span className="text-sm text-gray-600">お見積り提示中</span>
+            <div className="w-4 h-4 bg-blue-200 rounded border border-blue-300"></div>
+            <span className="text-sm text-gray-600">コーディング工程</span>
           </div>
           <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-orange-500 rounded"></div>
-            <span className="text-sm text-gray-600">進行中</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-green-500 rounded"></div>
-            <span className="text-sm text-gray-600">納品</span>
+            <div className="w-4 h-4 bg-gray-200 rounded border border-gray-300"></div>
+            <span className="text-sm text-gray-600">その他工程</span>
           </div>
           <div className="flex items-center space-x-2">
             <div className="w-2 h-2 bg-yellow-400 rounded-full border border-white"></div>
-            <span className="text-sm text-gray-600">相談日</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-blue-400 rounded-full border border-white"></div>
-            <span className="text-sm text-gray-600">受注日</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-purple-400 rounded-full border border-white"></div>
             <span className="text-sm text-gray-600">初稿日</span>
           </div>
         </div>
