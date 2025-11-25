@@ -611,42 +611,117 @@ export function TaskList({ categoryFilter }: TaskListProps) {
               className="space-y-2 min-h-[200px]"
             >
               {tasksByStatus.pending.map((task, index) => (
-                <div
-                  key={task.id}
-                  draggable
-                  onDragStart={(e) => handleBoardDragStart(e, task)}
-                  onDragOver={handleBoardDragOver}
-                  onDrop={(e) => {
-                    e.stopPropagation();
-                    handleBoardDrop(e, 'PENDING', index);
-                  }}
-                  className="bg-white rounded-lg border p-3 hover:shadow-md transition-shadow cursor-move"
-                >
-                  <div className="flex items-start gap-2">
-                    <button
-                      onClick={() => handleToggleComplete(task)}
-                      className="flex-shrink-0 w-5 h-5 rounded border-2 border-gray-300 hover:border-green-500 mt-0.5"
-                    />
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-900">{task.title}</div>
-                      {task.description && (
-                        <div className="text-xs text-gray-600 mt-1">{task.description}</div>
-                      )}
-                      <div className="flex items-center gap-2 mt-2 flex-wrap">
-                        <span className="text-xs">{TASK_PRIORITY_LABELS[task.priority]}</span>
-                        {task.dueDate && (
-                          <span className="text-xs text-orange-600">
-                            {new Date(task.dueDate).toLocaleString('ja-JP', {
-                              month: '2-digit',
-                              day: '2-digit',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </span>
+                <div key={task.id}>
+                  <div
+                    draggable
+                    onDragStart={(e) => handleBoardDragStart(e, task)}
+                    onDragOver={handleBoardDragOver}
+                    onDrop={(e) => {
+                      e.stopPropagation();
+                      handleBoardDrop(e, 'PENDING', index);
+                    }}
+                    className="bg-white rounded-lg border p-3 hover:shadow-md transition-shadow cursor-move"
+                  >
+                    <div className="flex items-start gap-2">
+                      <button
+                        onClick={() => handleToggleComplete(task)}
+                        className="flex-shrink-0 w-5 h-5 rounded border-2 border-gray-300 hover:border-green-500 mt-0.5"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="font-medium text-gray-900 flex-1">{task.title}</div>
+                          <div className="flex items-center gap-1">
+                            {task.subTasks && task.subTasks.length > 0 && (
+                              <button
+                                onClick={() => toggleExpand(task.id)}
+                                className="text-gray-400 hover:text-gray-600"
+                              >
+                                {expandedTasks.has(task.id) ? (
+                                  <ChevronDown className="h-4 w-4" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4" />
+                                )}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleEdit(task)}
+                              className="text-gray-400 hover:text-gray-600"
+                              title="編集"
+                            >
+                              <Edit className="h-3 w-3" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(task)}
+                              className="text-red-400 hover:text-red-600"
+                              title="削除"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </div>
+                        {task.description && (
+                          <div className="text-xs text-gray-600 mt-1">{task.description}</div>
                         )}
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+                          <span className="text-xs">{TASK_PRIORITY_LABELS[task.priority]}</span>
+                          {task.dueDate && (
+                            <span className="text-xs text-orange-600">
+                              {new Date(task.dueDate).toLocaleString('ja-JP', {
+                                month: '2-digit',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                          )}
+                          {task.subTasks && task.subTasks.length > 0 && (
+                            <span className="text-xs text-gray-500">
+                              サブタスク: {task.subTasks.filter(st => st.completed).length}/{task.subTasks.length}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
+
+                  {/* サブタスク展開 */}
+                  {expandedTasks.has(task.id) && (
+                    <div className="ml-6 mt-1 space-y-1">
+                      {task.subTasks && task.subTasks.length > 0 && task.subTasks.map((subTask) => (
+                        <div
+                          key={subTask.id}
+                          className="bg-gray-50 rounded p-2 text-xs flex items-center gap-2 group"
+                        >
+                          <button
+                            onClick={() => handleToggleComplete(subTask)}
+                            className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center ${
+                              subTask.completed
+                                ? 'bg-green-500 border-green-500'
+                                : 'border-gray-300'
+                            }`}
+                          >
+                            {subTask.completed && <Check className="h-3 w-3 text-white" />}
+                          </button>
+                          <span className={`flex-1 ${subTask.completed ? 'line-through text-gray-500' : 'text-gray-700'}`}>
+                            {subTask.title}
+                          </span>
+                          <button
+                            onClick={() => handleDelete(subTask)}
+                            className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => handleAddSubTask(task)}
+                        className="bg-blue-50 hover:bg-blue-100 rounded p-2 text-xs text-blue-600 w-full flex items-center justify-center gap-1"
+                      >
+                        <ListPlus className="h-3 w-3" />
+                        サブタスク追加
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -666,47 +741,117 @@ export function TaskList({ categoryFilter }: TaskListProps) {
               className="space-y-2 min-h-[200px]"
             >
               {tasksByStatus.inProgress.map((task, index) => (
-                <div
-                  key={task.id}
-                  draggable
-                  onDragStart={(e) => handleBoardDragStart(e, task)}
-                  onDragOver={handleBoardDragOver}
-                  onDrop={(e) => {
-                    e.stopPropagation();
-                    handleBoardDrop(e, 'IN_PROGRESS', index);
-                  }}
-                  className="bg-white rounded-lg border border-blue-200 p-3 hover:shadow-md transition-shadow cursor-move"
-                >
-                  <div className="flex items-start gap-2">
-                    <button
-                      onClick={() => handleToggleComplete(task)}
-                      className="flex-shrink-0 w-5 h-5 rounded border-2 border-gray-300 hover:border-green-500 mt-0.5"
-                    />
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-900">{task.title}</div>
-                      {task.description && (
-                        <div className="text-xs text-gray-600 mt-1">{task.description}</div>
-                      )}
-                      <div className="flex items-center gap-2 mt-2 flex-wrap">
-                        <span className="text-xs">{TASK_PRIORITY_LABELS[task.priority]}</span>
-                        {task.dueDate && (
-                          <span className="text-xs text-orange-600">
-                            {new Date(task.dueDate).toLocaleString('ja-JP', {
-                              month: '2-digit',
-                              day: '2-digit',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </span>
+                <div key={task.id}>
+                  <div
+                    draggable
+                    onDragStart={(e) => handleBoardDragStart(e, task)}
+                    onDragOver={handleBoardDragOver}
+                    onDrop={(e) => {
+                      e.stopPropagation();
+                      handleBoardDrop(e, 'IN_PROGRESS', index);
+                    }}
+                    className="bg-white rounded-lg border border-blue-200 p-3 hover:shadow-md transition-shadow cursor-move"
+                  >
+                    <div className="flex items-start gap-2">
+                      <button
+                        onClick={() => handleToggleComplete(task)}
+                        className="flex-shrink-0 w-5 h-5 rounded border-2 border-gray-300 hover:border-green-500 mt-0.5"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="font-medium text-gray-900 flex-1">{task.title}</div>
+                          <div className="flex items-center gap-1">
+                            {task.subTasks && task.subTasks.length > 0 && (
+                              <button
+                                onClick={() => toggleExpand(task.id)}
+                                className="text-gray-400 hover:text-gray-600"
+                              >
+                                {expandedTasks.has(task.id) ? (
+                                  <ChevronDown className="h-4 w-4" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4" />
+                                )}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleEdit(task)}
+                              className="text-gray-400 hover:text-gray-600"
+                              title="編集"
+                            >
+                              <Edit className="h-3 w-3" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(task)}
+                              className="text-red-400 hover:text-red-600"
+                              title="削除"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </div>
+                        {task.description && (
+                          <div className="text-xs text-gray-600 mt-1">{task.description}</div>
                         )}
-                        {task.subTasks && task.subTasks.length > 0 && (
-                          <span className="text-xs text-gray-500">
-                            {task.subTasks.filter(st => st.completed).length}/{task.subTasks.length}
-                          </span>
-                        )}
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+                          <span className="text-xs">{TASK_PRIORITY_LABELS[task.priority]}</span>
+                          {task.dueDate && (
+                            <span className="text-xs text-orange-600">
+                              {new Date(task.dueDate).toLocaleString('ja-JP', {
+                                month: '2-digit',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                          )}
+                          {task.subTasks && task.subTasks.length > 0 && (
+                            <span className="text-xs text-gray-500">
+                              サブタスク: {task.subTasks.filter(st => st.completed).length}/{task.subTasks.length}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
+
+                  {/* サブタスク展開 */}
+                  {expandedTasks.has(task.id) && (
+                    <div className="ml-6 mt-1 space-y-1">
+                      {task.subTasks && task.subTasks.length > 0 && task.subTasks.map((subTask) => (
+                        <div
+                          key={subTask.id}
+                          className="bg-gray-50 rounded p-2 text-xs flex items-center gap-2 group"
+                        >
+                          <button
+                            onClick={() => handleToggleComplete(subTask)}
+                            className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center ${
+                              subTask.completed
+                                ? 'bg-green-500 border-green-500'
+                                : 'border-gray-300'
+                            }`}
+                          >
+                            {subTask.completed && <Check className="h-3 w-3 text-white" />}
+                          </button>
+                          <span className={`flex-1 ${subTask.completed ? 'line-through text-gray-500' : 'text-gray-700'}`}>
+                            {subTask.title}
+                          </span>
+                          <button
+                            onClick={() => handleDelete(subTask)}
+                            className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => handleAddSubTask(task)}
+                        className="bg-blue-50 hover:bg-blue-100 rounded p-2 text-xs text-blue-600 w-full flex items-center justify-center gap-1"
+                      >
+                        <ListPlus className="h-3 w-3" />
+                        サブタスク追加
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -748,6 +893,11 @@ export function TaskList({ categoryFilter }: TaskListProps) {
                               hour: '2-digit',
                               minute: '2-digit'
                             })}
+                          </span>
+                        )}
+                        {task.subTasks && task.subTasks.length > 0 && (
+                          <span className="text-xs text-gray-500">
+                            サブタスク: {task.subTasks.filter(st => st.completed).length}/{task.subTasks.length}
                           </span>
                         )}
                       </div>
