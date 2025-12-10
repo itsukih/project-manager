@@ -32,7 +32,30 @@ export function TaskList({ categoryFilter }: TaskListProps) {
       const response = await fetch(`/api/tasks?${params}`);
       if (!response.ok) throw new Error('Failed to fetch tasks');
       const data = await response.json();
-      setTasks(data);
+
+      // 優先度と期限でソート
+      const sortedData = data.sort((a: TaskWithRelations, b: TaskWithRelations) => {
+        // 優先度の順序: URGENT(0) > HIGH(1) > MEDIUM(2) > LOW(3)
+        const priorityOrder = { URGENT: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+        const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder];
+        const bPriority = priorityOrder[b.priority as keyof typeof priorityOrder];
+
+        // 優先度が異なる場合は優先度順
+        if (aPriority !== bPriority) {
+          return aPriority - bPriority;
+        }
+
+        // 優先度が同じ場合は期限順（期限がない場合は後ろに）
+        if (a.dueDate && b.dueDate) {
+          return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+        }
+        if (a.dueDate) return -1;
+        if (b.dueDate) return 1;
+
+        return 0;
+      });
+
+      setTasks(sortedData);
     } catch (err: any) {
       setError(err.message);
     } finally {

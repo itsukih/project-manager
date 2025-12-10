@@ -43,7 +43,6 @@ export async function GET(request: NextRequest) {
           orderBy: { order: 'asc' },
         },
       },
-      orderBy: { order: 'asc' },
     });
 
     return NextResponse.json(tasks);
