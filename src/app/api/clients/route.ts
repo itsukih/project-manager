@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
         name: data.name.trim(),
         homepageUrl: data.homepageUrl,
         contactPerson: data.contactPerson,
-        status: data.status || '未接触',
+        status: data.status || '[]',
         rank: data.rank || 'C',
         history: data.history,
         salesIdea: data.salesIdea,

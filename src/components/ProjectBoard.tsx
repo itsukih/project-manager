@@ -12,6 +12,7 @@ import { ja } from 'date-fns/locale';
 const BOARD_COLUMNS = [
   { status: 'CONSULTING', label: '相談中', color: 'bg-blue-50 border-blue-200' },
   { status: 'QUOTE_SUBMITTED', label: 'お見積り提示中', color: 'bg-yellow-50 border-yellow-200' },
+  { status: 'WAITING_CONTACT', label: '連絡待ち', color: 'bg-gray-50 border-gray-300' },
   { status: 'ORDER_CONFIRMED', label: '受注確定', color: 'bg-purple-50 border-purple-200' },
   { status: 'IN_PROGRESS', label: '進行中', color: 'bg-orange-50 border-orange-200' },
   { status: 'DELIVERED', label: '納品', color: 'bg-green-50 border-green-200' },
@@ -177,12 +178,12 @@ export function ProjectBoard() {
       </div>
 
       {/* カンバンボード */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="flex gap-4 overflow-x-auto pb-4">
         {BOARD_COLUMNS.map((column) => {
           const columnProjects = getProjectsByStatus(column.status);
 
           return (
-            <div key={column.status} className="flex flex-col">
+            <div key={column.status} className="flex flex-col flex-shrink-0 w-80">
               {/* カラムヘッダー */}
               <div className={`${column.color} border rounded-t-lg px-4 py-3`}>
                 <div className="flex items-center justify-between">

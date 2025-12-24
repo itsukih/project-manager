@@ -687,6 +687,11 @@ export function TaskList({ categoryFilter }: TaskListProps) {
                         )}
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
                           <span className="text-xs">{TASK_PRIORITY_LABELS[task.priority]}</span>
+                          {task.project && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+                              {task.project.name}
+                            </span>
+                          )}
                           {task.dueDate && (
                             <span className="text-xs text-orange-600">
                               {new Date(task.dueDate).toLocaleString('ja-JP', {
@@ -817,6 +822,11 @@ export function TaskList({ categoryFilter }: TaskListProps) {
                         )}
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
                           <span className="text-xs">{TASK_PRIORITY_LABELS[task.priority]}</span>
+                          {task.project && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+                              {task.project.name}
+                            </span>
+                          )}
                           {task.dueDate && (
                             <span className="text-xs text-orange-600">
                               {new Date(task.dueDate).toLocaleString('ja-JP', {
