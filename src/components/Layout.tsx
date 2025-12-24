@@ -41,7 +41,7 @@ export function Layout({ children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="min-h-screen">
       {/* サイドバー（デスクトップ） */}
       <div className="hidden md:flex md:w-64 md:flex-col fixed h-screen z-30">
         <div className="flex flex-col flex-grow pt-5 pb-4 bg-white border-r border-orange-200 overflow-y-auto">
