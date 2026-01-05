@@ -98,7 +98,21 @@ export default function RegularContactsPage() {
     if (!activeTemplate) return;
 
     try {
-      await navigator.clipboard.writeText(activeTemplate.content);
+      // Clipboard API を試す
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(activeTemplate.content);
+      } else {
+        // フォールバック: テキストエリアを使用
+        const textArea = document.createElement('textarea');
+        textArea.value = activeTemplate.content;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {

@@ -185,6 +185,36 @@ export function Analytics() {
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center">
             <div className="flex-shrink-0">
+              <DollarSign className="h-8 w-8 text-red-600" />
+            </div>
+            <div className="ml-4">
+              <div className="text-sm font-medium text-gray-500">納品済外注費</div>
+              <div className="text-2xl font-bold text-gray-900">
+                {data ? formatCurrency(data.totalDeliveryOutsourcingCost) : '-'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <TrendingUp className="h-8 w-8 text-blue-600" />
+            </div>
+            <div className="ml-4">
+              <div className="text-sm font-medium text-gray-500">納品済利益額</div>
+              <div className="text-2xl font-bold text-gray-900">
+                {data ? formatCurrency(data.totalDeliveryProfit) : '-'}
+              </div>
+            </div>
+          </div>
+        </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
               <Calendar className="h-8 w-8 text-orange-600" />
             </div>
             <div className="ml-4">
@@ -217,9 +247,9 @@ export function Analytics() {
         </div>
       </div>
 
-      {/* 月別グラフ */}
+      {/* 月別グラフ（受注ベース） */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">月別推移</h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">月別推移（受注ベース）</h3>
         {data ? (
           <div className="w-full" style={{ height: '400px' }}>
             <Bar
@@ -230,7 +260,7 @@ export function Analytics() {
                 ],
                 datasets: [
                   {
-                    label: '売上額',
+                    label: '受注額',
                     data: data.monthlyOrderAmount.map(m => m.amount),
                     backgroundColor: 'rgba(34, 197, 94, 0.8)',
                     borderColor: 'rgba(34, 197, 94, 1)',
@@ -261,7 +291,81 @@ export function Analytics() {
                   },
                   title: {
                     display: true,
-                    text: `${year}年 月別売上・外注費・利益推移`,
+                    text: `${year}年 月別受注額・外注費・利益推移`,
+                  },
+                  tooltip: {
+                    callbacks: {
+                      label: function(context) {
+                        return `${context.dataset.label}: ${formatCurrency(context.raw as number)}`;
+                      }
+                    }
+                  }
+                },
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                    ticks: {
+                      callback: function(value) {
+                        return formatCurrency(value as number);
+                      }
+                    }
+                  }
+                }
+              }}
+            />
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <div className="text-gray-500">データを読み込み中...</div>
+          </div>
+        )}
+      </div>
+
+      {/* 月別グラフ（納品ベース） */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">月別推移（納品ベース）</h3>
+        {data ? (
+          <div className="w-full" style={{ height: '400px' }}>
+            <Bar
+              data={{
+                labels: [
+                  '1月', '2月', '3月', '4月', '5月', '6月',
+                  '7月', '8月', '9月', '10月', '11月', '12月'
+                ],
+                datasets: [
+                  {
+                    label: '納品額',
+                    data: data.monthlyDeliveryAmount.map(m => m.amount),
+                    backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                    borderColor: 'rgba(16, 185, 129, 1)',
+                    borderWidth: 1,
+                  },
+                  {
+                    label: '外注費',
+                    data: data.monthlyDeliveryAmount.map(m => m.outsourcingCost),
+                    backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                    borderColor: 'rgba(239, 68, 68, 1)',
+                    borderWidth: 1,
+                  },
+                  {
+                    label: '利益額',
+                    data: data.monthlyDeliveryAmount.map(m => m.profit),
+                    backgroundColor: 'rgba(59, 130, 246, 0.8)',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    borderWidth: 1,
+                  }
+                ]
+              }}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    position: 'top' as const,
+                  },
+                  title: {
+                    display: true,
+                    text: `${year}年 月別納品額・外注費・利益推移`,
                   },
                   tooltip: {
                     callbacks: {
