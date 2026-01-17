@@ -37,17 +37,41 @@ export function TaskCalendar({ tasks, onTaskClick, onTaskToggle }: TaskCalendarP
     current.setDate(current.getDate() + 1);
   }
 
-  // 各日付のタスクを取得
+  // 各日付のタスクを取得（サブタスクも含む）
   const getTasksForDate = (date: Date) => {
-    return tasks.filter(task => {
-      if (!task.dueDate) return false;
-      const taskDate = new Date(task.dueDate);
-      return (
-        taskDate.getFullYear() === date.getFullYear() &&
-        taskDate.getMonth() === date.getMonth() &&
-        taskDate.getDate() === date.getDate()
-      );
+    const allTasks: TaskWithRelations[] = [];
+
+    tasks.forEach(task => {
+      // 親タスクの期限チェック
+      if (task.dueDate) {
+        const taskDate = new Date(task.dueDate);
+        if (
+          taskDate.getFullYear() === date.getFullYear() &&
+          taskDate.getMonth() === date.getMonth() &&
+          taskDate.getDate() === date.getDate()
+        ) {
+          allTasks.push(task);
+        }
+      }
+
+      // サブタスクの期限チェック
+      if (task.subTasks && task.subTasks.length > 0) {
+        task.subTasks.forEach(subTask => {
+          if (subTask.dueDate) {
+            const subTaskDate = new Date(subTask.dueDate);
+            if (
+              subTaskDate.getFullYear() === date.getFullYear() &&
+              subTaskDate.getMonth() === date.getMonth() &&
+              subTaskDate.getDate() === date.getDate()
+            ) {
+              allTasks.push(subTask);
+            }
+          }
+        });
+      }
     });
+
+    return allTasks;
   };
 
   // 前月へ

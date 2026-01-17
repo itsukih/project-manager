@@ -592,6 +592,25 @@ export function TaskList({ categoryFilter }: TaskListProps) {
                           {subTask.description && (
                             <div className="text-xs text-gray-600 mt-1">{subTask.description}</div>
                           )}
+                          {subTask.dueDate && (
+                            <div className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 mt-1">
+                              期限: {subTask.isAllDay ? (
+                                new Date(subTask.dueDate).toLocaleDateString('ja-JP', {
+                                  year: 'numeric',
+                                  month: '2-digit',
+                                  day: '2-digit'
+                                })
+                              ) : (
+                                new Date(subTask.dueDate).toLocaleString('ja-JP', {
+                                  year: 'numeric',
+                                  month: '2-digit',
+                                  day: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-1">
@@ -730,9 +749,28 @@ export function TaskList({ categoryFilter }: TaskListProps) {
                           >
                             {subTask.completed && <Check className="h-3 w-3 text-white" />}
                           </button>
-                          <span className={`flex-1 ${subTask.completed ? 'line-through text-gray-500' : 'text-gray-700'}`}>
-                            {subTask.title}
-                          </span>
+                          <div className="flex-1">
+                            <span className={subTask.completed ? 'line-through text-gray-500' : 'text-gray-700'}>
+                              {subTask.title}
+                            </span>
+                            {subTask.dueDate && (
+                              <span className="ml-2 text-orange-600">
+                                {subTask.isAllDay ? (
+                                  new Date(subTask.dueDate).toLocaleDateString('ja-JP', {
+                                    month: '2-digit',
+                                    day: '2-digit'
+                                  })
+                                ) : (
+                                  new Date(subTask.dueDate).toLocaleString('ja-JP', {
+                                    month: '2-digit',
+                                    day: '2-digit',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })
+                                )}
+                              </span>
+                            )}
+                          </div>
                           <button
                             onClick={() => handleDelete(subTask)}
                             className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity"
@@ -865,9 +903,28 @@ export function TaskList({ categoryFilter }: TaskListProps) {
                           >
                             {subTask.completed && <Check className="h-3 w-3 text-white" />}
                           </button>
-                          <span className={`flex-1 ${subTask.completed ? 'line-through text-gray-500' : 'text-gray-700'}`}>
-                            {subTask.title}
-                          </span>
+                          <div className="flex-1">
+                            <span className={subTask.completed ? 'line-through text-gray-500' : 'text-gray-700'}>
+                              {subTask.title}
+                            </span>
+                            {subTask.dueDate && (
+                              <span className="ml-2 text-orange-600">
+                                {subTask.isAllDay ? (
+                                  new Date(subTask.dueDate).toLocaleDateString('ja-JP', {
+                                    month: '2-digit',
+                                    day: '2-digit'
+                                  })
+                                ) : (
+                                  new Date(subTask.dueDate).toLocaleString('ja-JP', {
+                                    month: '2-digit',
+                                    day: '2-digit',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })
+                                )}
+                              </span>
+                            )}
+                          </div>
                           <button
                             onClick={() => handleDelete(subTask)}
                             className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity"
