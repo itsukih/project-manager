@@ -244,6 +244,25 @@ export function Analytics() {
             </div>
           </div>
         </div>
+
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <TrendingUp className="h-8 w-8 text-emerald-600" />
+            </div>
+            <div className="ml-4">
+              <div className="text-sm font-medium text-gray-500">利益率</div>
+              <div className="text-2xl font-bold text-gray-900">
+                {data && data.totalOrderAmount > 0
+                  ? `${((data.totalOrderProfit / data.totalOrderAmount) * 100).toFixed(1)}%`
+                  : '-'}
+              </div>
+              <div className="text-xs text-gray-400 mt-1">
+                受注額ベース
+              </div>
+            </div>
+          </div>
+        </div>
         </div>
       </div>
 

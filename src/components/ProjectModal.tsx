@@ -11,9 +11,11 @@ import { Select } from '@/components/ui/Select';
 import { DatePicker } from '@/components/ui/DatePicker';
 import { useClients } from '@/hooks/useClients';
 import { useOutsourcingPartners } from '@/hooks/useOutsourcingPartners';
-import { ProjectWithRelations, SalesStatus, ProgressStatus } from '@/types';
+import { ProjectWithRelations, SalesStatus, ProgressStatus, PartnerType } from '@/types';
 import { addMonths, endOfMonth } from 'date-fns';
 import { ProjectPhases } from '@/components/ProjectPhases';
+import { QuickAddClientModal } from '@/components/QuickAddClientModal';
+import { QuickAddPartnerModal } from '@/components/QuickAddPartnerModal';
 
 const projectSchema = z.object({
   name: z.string().min(1, '案件名は必須です'),
@@ -47,8 +49,10 @@ interface ProjectModalProps {
 
 export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
   const [loading, setLoading] = useState(false);
-  const { clients } = useClients();
-  const { partners } = useOutsourcingPartners();
+  const { clients, refresh: refreshClients } = useClients();
+  const { partners, refresh: refreshPartners } = useOutsourcingPartners();
+  const [showClientModal, setShowClientModal] = useState(false);
+  const [showPartnerModal, setShowPartnerModal] = useState(false);
 
   const {
     register,
@@ -191,8 +195,21 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 クライアント *
               </label>
-              <Select {...register('clientId')}>
+              <Select
+                {...register('clientId')}
+                onChange={(e) => {
+                  if (e.target.value === '__add_new__') {
+                    setShowClientModal(true);
+                    e.target.value = watch('clientId') || '';
+                  } else {
+                    setValue('clientId', e.target.value);
+                  }
+                }}
+              >
                 <option value="">クライアントを選択</option>
+                <option value="__add_new__" className="text-orange-600 font-medium">
+                  + 新規クライアントを追加
+                </option>
                 {clients.map((client) => (
                   <option key={client.id} value={client.id}>
                     {client.name}
@@ -343,6 +360,13 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
                   外注パートナー（複数選択可）
                 </label>
                 <div className="border border-gray-300 rounded-md p-3 max-h-48 overflow-y-auto bg-white">
+                  <button
+                    type="button"
+                    onClick={() => setShowPartnerModal(true)}
+                    className="w-full text-left text-sm text-orange-600 font-medium hover:bg-orange-50 p-1 rounded mb-2 border-b border-gray-200 pb-2"
+                  >
+                    + 新規パートナーを追加
+                  </button>
                   {partners.length === 0 ? (
                     <p className="text-sm text-gray-500">パートナーが登録されていません</p>
                   ) : (
@@ -493,6 +517,27 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
           </Button>
         </div>
       </form>
+
+      {/* クライアント追加モーダル */}
+      <QuickAddClientModal
+        isOpen={showClientModal}
+        onClose={() => setShowClientModal(false)}
+        onCreated={(client) => {
+          refreshClients();
+          setValue('clientId', client.id.toString());
+        }}
+      />
+
+      {/* パートナー追加モーダル */}
+      <QuickAddPartnerModal
+        isOpen={showPartnerModal}
+        onClose={() => setShowPartnerModal(false)}
+        onCreated={(partner) => {
+          refreshPartners();
+          const currentIds = watchOutsourcingPartnerIds;
+          setValue('outsourcingPartnerIds', [...currentIds, partner.id.toString()]);
+        }}
+      />
     </Modal>
   );
 }
