@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { TrendingUp, DollarSign, Calendar, Users } from 'lucide-react';
+import { TrendingUp, DollarSign, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import {
@@ -221,25 +221,6 @@ export function Analytics() {
               <div className="text-sm font-medium text-gray-500">進行中案件</div>
               <div className="text-2xl font-bold text-gray-900">
                 {data ? data.statusCounts.reduce((sum, item) => sum + item._count.id, 0) : '-'}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <Users className="h-8 w-8 text-purple-600" />
-            </div>
-            <div className="ml-4">
-              <div className="text-sm font-medium text-gray-500">平均利益額</div>
-              <div className="text-2xl font-bold text-gray-900">
-                {data && data.statusCounts.length > 0
-                  ? formatCurrency(
-                      data.totalOrderProfit /
-                        data.statusCounts.reduce((sum, item) => sum + item._count.id, 0)
-                    )
-                  : '-'}
               </div>
             </div>
           </div>
