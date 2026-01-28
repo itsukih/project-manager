@@ -395,25 +395,73 @@ export function Analytics() {
         )}
       </div>
 
-      {/* ステータス別内訳 */}
-      {data && data.statusCounts.length > 0 && (
+      {/* 月別数値テーブル */}
+      {data && (
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">ステータス別案件数</h3>
-          <div className="space-y-3">
-            {data.statusCounts.map((item) => (
-              <div key={item.salesStatus} className="flex justify-between items-center">
-                <div className="text-sm text-gray-600">
-                  {item.salesStatus === 'CONSULTING' && '相談中'}
-                  {item.salesStatus === 'QUOTE_SUBMITTED' && 'お見積り提示中'}
-                  {item.salesStatus === 'IN_PROGRESS' && '進行中'}
-                  {item.salesStatus === 'DELIVERED' && '納品'}
-                  {item.salesStatus === 'WAITING_CONTACT' && '連絡待ち'}
-                </div>
-                <div className="text-sm font-medium text-gray-900">
-                  {item._count.id}件
-                </div>
-              </div>
-            ))}
+          <h3 className="text-lg font-medium text-gray-900 mb-4">月別数値一覧</h3>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="px-4 py-3 text-left font-medium text-gray-500">月</th>
+                  <th className="px-4 py-3 text-right font-medium text-gray-500">受注額</th>
+                  <th className="px-4 py-3 text-right font-medium text-gray-500">外注費</th>
+                  <th className="px-4 py-3 text-right font-medium text-gray-500">利益額</th>
+                  <th className="px-4 py-3 text-right font-medium text-gray-500">利益率</th>
+                  <th className="px-4 py-3 text-right font-medium text-gray-500">納品額</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.monthlyOrderAmount.map((order, i) => {
+                  const delivery = data.monthlyDeliveryAmount[i];
+                  const profitRate = order.amount > 0
+                    ? ((order.profit / order.amount) * 100).toFixed(1)
+                    : '-';
+                  return (
+                    <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-gray-900">
+                        {i + 1}月
+                      </td>
+                      <td className="px-4 py-3 text-right text-gray-900">
+                        {formatCurrency(order.amount)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-red-600">
+                        {formatCurrency(order.outsourcingCost)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-blue-600 font-medium">
+                        {formatCurrency(order.profit)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium text-emerald-600">
+                        {profitRate === '-' ? '-' : `${profitRate}%`}
+                      </td>
+                      <td className="px-4 py-3 text-right text-gray-900">
+                        {formatCurrency(delivery.amount)}
+                      </td>
+                    </tr>
+                  );
+                })}
+                <tr className="border-t-2 border-gray-300 bg-gray-50 font-semibold">
+                  <td className="px-4 py-3 text-gray-900">合計</td>
+                  <td className="px-4 py-3 text-right text-gray-900">
+                    {formatCurrency(data.totalOrderAmount)}
+                  </td>
+                  <td className="px-4 py-3 text-right text-red-600">
+                    {formatCurrency(data.totalOrderOutsourcingCost)}
+                  </td>
+                  <td className="px-4 py-3 text-right text-blue-600">
+                    {formatCurrency(data.totalOrderProfit)}
+                  </td>
+                  <td className="px-4 py-3 text-right text-emerald-600">
+                    {data.totalOrderAmount > 0
+                      ? `${((data.totalOrderProfit / data.totalOrderAmount) * 100).toFixed(1)}%`
+                      : '-'}
+                  </td>
+                  <td className="px-4 py-3 text-right text-gray-900">
+                    {formatCurrency(data.totalDeliveryAmount)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       )}
