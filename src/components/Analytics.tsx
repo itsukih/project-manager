@@ -409,6 +409,7 @@ export function Analytics() {
                   <th className="px-4 py-3 text-right font-medium text-gray-500">利益額</th>
                   <th className="px-4 py-3 text-right font-medium text-gray-500">利益率</th>
                   <th className="px-4 py-3 text-right font-medium text-gray-500">納品額</th>
+                  <th className="px-4 py-3 text-right font-medium text-gray-500">納品利益</th>
                 </tr>
               </thead>
               <tbody>
@@ -437,6 +438,9 @@ export function Analytics() {
                       <td className="px-4 py-3 text-right text-gray-900">
                         {formatCurrency(delivery.amount)}
                       </td>
+                      <td className="px-4 py-3 text-right text-blue-600 font-medium">
+                        {formatCurrency(delivery.profit)}
+                      </td>
                     </tr>
                   );
                 })}
@@ -458,6 +462,9 @@ export function Analytics() {
                   </td>
                   <td className="px-4 py-3 text-right text-gray-900">
                     {formatCurrency(data.totalDeliveryAmount)}
+                  </td>
+                  <td className="px-4 py-3 text-right text-blue-600">
+                    {formatCurrency(data.totalDeliveryProfit)}
                   </td>
                 </tr>
               </tbody>
