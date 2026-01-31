@@ -38,6 +38,7 @@ interface AnalyticsData {
   totalDeliveryProfit: number;
   monthlyOrderAmount: Array<{ month: number; amount: number; outsourcingCost: number; profit: number }>;
   monthlyDeliveryAmount: Array<{ month: number; amount: number; outsourcingCost: number; profit: number }>;
+  monthlyCounts: Array<{ month: number; consultationCount: number; orderCount: number; deliveryCount: number }>;
   statusCounts: Array<{ salesStatus: string; _count: { id: number } }>;
 }
 
@@ -400,70 +401,92 @@ export function Analytics() {
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">月別数値一覧</h3>
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
+            <table className="min-w-[1100px] w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="px-4 py-3 text-left font-medium text-gray-500">月</th>
-                  <th className="px-4 py-3 text-right font-medium text-gray-500">受注額</th>
-                  <th className="px-4 py-3 text-right font-medium text-gray-500">外注費</th>
-                  <th className="px-4 py-3 text-right font-medium text-gray-500">利益額</th>
-                  <th className="px-4 py-3 text-right font-medium text-gray-500">利益率</th>
-                  <th className="px-4 py-3 text-right font-medium text-gray-500">納品額</th>
-                  <th className="px-4 py-3 text-right font-medium text-gray-500">納品利益</th>
+                  <th className="px-3 py-3 text-left font-medium text-gray-500 whitespace-nowrap">月</th>
+                  <th className="px-3 py-3 text-right font-medium text-gray-500 whitespace-nowrap">相談数</th>
+                  <th className="px-3 py-3 text-right font-medium text-gray-500 whitespace-nowrap">受注数</th>
+                  <th className="px-3 py-3 text-right font-medium text-gray-500 whitespace-nowrap">受注額</th>
+                  <th className="px-3 py-3 text-right font-medium text-gray-500 whitespace-nowrap">外注費</th>
+                  <th className="px-3 py-3 text-right font-medium text-gray-500 whitespace-nowrap">利益額</th>
+                  <th className="px-3 py-3 text-right font-medium text-gray-500 whitespace-nowrap">利益率</th>
+                  <th className="px-3 py-3 text-right font-medium text-gray-500 whitespace-nowrap">納品数</th>
+                  <th className="px-3 py-3 text-right font-medium text-gray-500 whitespace-nowrap">納品額</th>
+                  <th className="px-3 py-3 text-right font-medium text-gray-500 whitespace-nowrap">納品利益</th>
                 </tr>
               </thead>
               <tbody>
                 {data.monthlyOrderAmount.map((order, i) => {
                   const delivery = data.monthlyDeliveryAmount[i];
+                  const counts = data.monthlyCounts[i];
                   const profitRate = order.amount > 0
                     ? ((order.profit / order.amount) * 100).toFixed(1)
                     : '-';
                   return (
                     <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium text-gray-900">
+                      <td className="px-3 py-3 font-medium text-gray-900 whitespace-nowrap">
                         {i + 1}月
                       </td>
-                      <td className="px-4 py-3 text-right text-gray-900">
+                      <td className="px-3 py-3 text-right text-purple-600 font-medium">
+                        {counts.consultationCount}
+                      </td>
+                      <td className="px-3 py-3 text-right text-green-600 font-medium">
+                        {counts.orderCount}
+                      </td>
+                      <td className="px-3 py-3 text-right text-gray-900 whitespace-nowrap">
                         {formatCurrency(order.amount)}
                       </td>
-                      <td className="px-4 py-3 text-right text-red-600">
+                      <td className="px-3 py-3 text-right text-red-600 whitespace-nowrap">
                         {formatCurrency(order.outsourcingCost)}
                       </td>
-                      <td className="px-4 py-3 text-right text-blue-600 font-medium">
+                      <td className="px-3 py-3 text-right text-blue-600 font-medium whitespace-nowrap">
                         {formatCurrency(order.profit)}
                       </td>
-                      <td className="px-4 py-3 text-right font-medium text-emerald-600">
+                      <td className="px-3 py-3 text-right font-medium text-emerald-600">
                         {profitRate === '-' ? '-' : `${profitRate}%`}
                       </td>
-                      <td className="px-4 py-3 text-right text-gray-900">
+                      <td className="px-3 py-3 text-right text-orange-600 font-medium">
+                        {counts.deliveryCount}
+                      </td>
+                      <td className="px-3 py-3 text-right text-gray-900 whitespace-nowrap">
                         {formatCurrency(delivery.amount)}
                       </td>
-                      <td className="px-4 py-3 text-right text-blue-600 font-medium">
+                      <td className="px-3 py-3 text-right text-blue-600 font-medium whitespace-nowrap">
                         {formatCurrency(delivery.profit)}
                       </td>
                     </tr>
                   );
                 })}
                 <tr className="border-t-2 border-gray-300 bg-gray-50 font-semibold">
-                  <td className="px-4 py-3 text-gray-900">合計</td>
-                  <td className="px-4 py-3 text-right text-gray-900">
+                  <td className="px-3 py-3 text-gray-900">合計</td>
+                  <td className="px-3 py-3 text-right text-purple-600">
+                    {data.monthlyCounts.reduce((sum, c) => sum + c.consultationCount, 0)}
+                  </td>
+                  <td className="px-3 py-3 text-right text-green-600">
+                    {data.monthlyCounts.reduce((sum, c) => sum + c.orderCount, 0)}
+                  </td>
+                  <td className="px-3 py-3 text-right text-gray-900 whitespace-nowrap">
                     {formatCurrency(data.totalOrderAmount)}
                   </td>
-                  <td className="px-4 py-3 text-right text-red-600">
+                  <td className="px-3 py-3 text-right text-red-600 whitespace-nowrap">
                     {formatCurrency(data.totalOrderOutsourcingCost)}
                   </td>
-                  <td className="px-4 py-3 text-right text-blue-600">
+                  <td className="px-3 py-3 text-right text-blue-600 whitespace-nowrap">
                     {formatCurrency(data.totalOrderProfit)}
                   </td>
-                  <td className="px-4 py-3 text-right text-emerald-600">
+                  <td className="px-3 py-3 text-right text-emerald-600">
                     {data.totalOrderAmount > 0
                       ? `${((data.totalOrderProfit / data.totalOrderAmount) * 100).toFixed(1)}%`
                       : '-'}
                   </td>
-                  <td className="px-4 py-3 text-right text-gray-900">
+                  <td className="px-3 py-3 text-right text-orange-600">
+                    {data.monthlyCounts.reduce((sum, c) => sum + c.deliveryCount, 0)}
+                  </td>
+                  <td className="px-3 py-3 text-right text-gray-900 whitespace-nowrap">
                     {formatCurrency(data.totalDeliveryAmount)}
                   </td>
-                  <td className="px-4 py-3 text-right text-blue-600">
+                  <td className="px-3 py-3 text-right text-blue-600 whitespace-nowrap">
                     {formatCurrency(data.totalDeliveryProfit)}
                   </td>
                 </tr>

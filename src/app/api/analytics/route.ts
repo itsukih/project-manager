@@ -97,6 +97,53 @@ export async function GET(request: NextRequest) {
       })
     );
 
+    // 月別の件数（相談数・受注数・納品数）
+    const monthlyCounts = await Promise.all(
+      Array.from({ length: 12 }, async (_, index) => {
+        const monthStart = new Date(year, index, 1);
+        const monthEnd = new Date(year, index + 1, 1);
+
+        // 相談数（consultationDateベース）
+        const consultationCount = await prisma.project.count({
+          where: {
+            consultationDate: {
+              gte: monthStart,
+              lt: monthEnd,
+            },
+          },
+        });
+
+        // 受注数（orderDateベース）
+        const orderCount = await prisma.project.count({
+          where: {
+            orderDate: {
+              gte: monthStart,
+              lt: monthEnd,
+            },
+            salesStatus: { not: 'LOST' },
+          },
+        });
+
+        // 納品数（deliveryDateベース）
+        const deliveryCount = await prisma.project.count({
+          where: {
+            deliveryDate: {
+              gte: monthStart,
+              lt: monthEnd,
+            },
+            salesStatus: 'DELIVERED',
+          },
+        });
+
+        return {
+          month: index + 1,
+          consultationCount,
+          orderCount,
+          deliveryCount,
+        };
+      })
+    );
+
     // ステータス別の案件数
     const statusCounts = await prisma.project.groupBy({
       by: ['salesStatus'],
@@ -118,6 +165,7 @@ export async function GET(request: NextRequest) {
       totalDeliveryProfit: (deliveryAmountResult._sum.amount || 0) - (deliveryAmountResult._sum.outsourcingCost || 0),
       monthlyOrderAmount,
       monthlyDeliveryAmount,
+      monthlyCounts,
       statusCounts,
     });
   } catch (error) {

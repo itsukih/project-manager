@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useProjects } from '@/hooks/useProjects';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -22,29 +22,41 @@ interface ProjectPhase {
 export function GanttChart() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const { projects, loading, error } = useProjects();
+  const headerScrollRef = useRef<HTMLDivElement>(null);
+  const contentScrollRef = useRef<HTMLDivElement>(null);
 
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const source = e.currentTarget;
-    const scrollTop = source.scrollTop;
-
-    // 左右のスクロール位置を同期
-    const leftPane = document.getElementById('gantt-left-pane');
-    const rightPane = document.getElementById('gantt-right-pane');
-
-    if (leftPane && source !== leftPane) {
-      leftPane.scrollTop = scrollTop;
+  // カレンダー部分の横スクロールを同期
+  const handleHorizontalScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const scrollLeft = e.currentTarget.scrollLeft;
+    if (headerScrollRef.current) {
+      headerScrollRef.current.scrollLeft = scrollLeft;
     }
-    if (rightPane && source !== rightPane) {
-      rightPane.scrollTop = scrollTop;
+  };
+
+  const handleHeaderHorizontalScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const scrollLeft = e.currentTarget.scrollLeft;
+    if (contentScrollRef.current) {
+      contentScrollRef.current.scrollLeft = scrollLeft;
     }
   };
 
   const getProjectsWithDates = () => {
     return projects.filter(project => {
-      const hasProjectDates = project.startDate || project.deliveryDate || project.consultationDate;
-      const hasPhases = project.phases && project.phases.length > 0;
-      return hasProjectDates || hasPhases;
+      // 納品済みの案件は表示しない
+      if (project.salesStatus === 'DELIVERED') return false;
+
+      const hasProjectDates = project.startDate || project.deliveryDate;
+      // 日付が入っている工程のみをカウント
+      const phasesWithDates = (project.phases || []).filter((phase: ProjectPhase) =>
+        phase.startDate || phase.deliveryDate
+      );
+      return hasProjectDates || phasesWithDates.length > 0;
     });
+  };
+
+  // 日付が入っている工程のみを取得
+  const getPhasesWithDates = (phases: ProjectPhase[]) => {
+    return phases.filter(phase => phase.startDate || phase.deliveryDate);
   };
 
   const getDaysInMonth = () => {
@@ -132,6 +144,13 @@ export function GanttChart() {
 
   return (
     <div className="space-y-6">
+      {/* スクロールバー非表示用スタイル */}
+      <style jsx>{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
+
       {/* 月ナビゲーション */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
@@ -178,71 +197,28 @@ export function GanttChart() {
             </div>
           </div>
         ) : (
-          <div className="flex max-h-[600px] border border-gray-200">
-            {/* 左側: 案件名リスト */}
-            <div className="w-64 flex-shrink-0 bg-gray-50 border-r border-gray-200">
-              {/* ヘッダー */}
-              <div className="flex items-center border-b border-gray-200 bg-gray-50" style={{ height: '44px' }}>
-                <div className="px-4 text-sm font-medium text-gray-900">案件名</div>
+          <div className="flex flex-col" style={{ maxHeight: '600px' }}>
+            {/* ヘッダー行（固定） */}
+            <div className="flex border-b border-gray-200 flex-shrink-0">
+              {/* 左側ヘッダー */}
+              <div className="w-64 flex-shrink-0 bg-gray-50 border-r border-gray-200">
+                <div className="flex items-center px-4" style={{ height: '44px' }}>
+                  <div className="text-sm font-medium text-gray-900">案件名</div>
+                </div>
               </div>
-
-              {/* プロジェクト名リスト */}
-              <div id="gantt-left-pane" className="max-h-[600px] overflow-y-auto" onScroll={handleScroll}>
-                {getProjectsWithDates().map((project, projectIndex) => {
-                  const phases = (project.phases || []) as ProjectPhase[];
-                  const rowCount = 1 + phases.length;
-                  const rowHeight = 72;
-
-                  return (
-                    <div
-                      key={project.id}
-                      style={{ height: `${rowCount * rowHeight}px` }}
-                      className={`border-b-2 border-gray-300 ${projectIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
-                    >
-                      {/* 案件全体の行 */}
-                      <div className="p-4 hover:bg-gray-100 flex flex-col justify-center" style={{ height: `${rowHeight}px` }}>
-                        <div className="text-sm font-bold text-gray-900 truncate" title={project.name}>
-                          {project.name}
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1 truncate" title={project.client.name}>
-                          {project.client.name}
-                        </div>
-                      </div>
-
-                      {/* 工程の行 */}
-                      {phases.map((phase) => {
-                        const colors = getPhaseColor(phase.type);
-                        return (
-                          <div
-                            key={phase.id}
-                            className="px-4 py-2 hover:bg-gray-100 border-t border-gray-200 flex items-center"
-                            style={{ height: `${rowHeight}px` }}
-                          >
-                            <div className="flex items-center space-x-2 ml-4">
-                              <span className={`inline-block px-2 py-0.5 text-xs font-medium ${colors.bg} ${colors.text} rounded`}>
-                                {phase.type === 'DESIGN' ? 'デザイン' : phase.type === 'CODING' ? 'コーディング' : 'その他'}
-                              </span>
-                              <span className="text-xs text-gray-600 truncate">{phase.name}</span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* 右側: カレンダー部分 */}
-            <div className="flex-1 overflow-x-auto">
-              <div style={{ minWidth: `${getDaysInMonth().length * 25}px` }}>
-                {/* カレンダーヘッダー */}
-                <div className="flex border-b border-gray-200 bg-white" style={{ height: '44px' }}>
+              {/* 右側カレンダーヘッダー */}
+              <div
+                ref={headerScrollRef}
+                className="flex-1 overflow-x-auto scrollbar-hide"
+                onScroll={handleHeaderHorizontalScroll}
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                <div className="flex" style={{ minWidth: `${getDaysInMonth().length * 25}px`, height: '44px' }}>
                   {getDaysInMonth().map((day) => (
                     <div
                       key={day.getTime()}
                       className={`text-center text-xs flex items-center justify-center border-r border-gray-200 ${
-                        isSameDay(day, new Date()) ? 'bg-blue-100 text-blue-800' : 'text-gray-500'
+                        isSameDay(day, new Date()) ? 'bg-blue-100 text-blue-800' : 'text-gray-500 bg-white'
                       }`}
                       style={{ minWidth: '25px', width: '25px' }}
                     >
@@ -250,12 +226,16 @@ export function GanttChart() {
                     </div>
                   ))}
                 </div>
+              </div>
+            </div>
 
-                {/* プロジェクト行のカレンダー部分 */}
-                <div id="gantt-right-pane" className="max-h-[600px] overflow-y-auto" onScroll={handleScroll}>
+            {/* コンテンツ行（縦スクロール） */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="flex">
+                {/* 左側: 案件名リスト */}
+                <div className="w-64 flex-shrink-0 bg-gray-50 border-r border-gray-200">
                   {getProjectsWithDates().map((project, projectIndex) => {
-                    const days = getDaysInMonth();
-                    const phases = (project.phases || []) as ProjectPhase[];
+                    const phases = getPhasesWithDates((project.phases || []) as ProjectPhase[]);
                     const rowCount = 1 + phases.length;
                     const rowHeight = 72;
 
@@ -265,71 +245,124 @@ export function GanttChart() {
                         style={{ height: `${rowCount * rowHeight}px` }}
                         className={`border-b-2 border-gray-300 ${projectIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
                       >
-                        {/* 案件全体のバー */}
-                        <div className="hover:bg-gray-100 flex items-center justify-center" style={{ height: `${rowHeight}px` }}>
-                          <div className="relative w-full" style={{ height: '40px' }}>
-                            {(() => {
-                              const barStyle = getBarStyle(project.startDate, project.deliveryDate, days);
-                              if (!barStyle) return null;
-                              return (
-                                <div
-                                  className={`absolute rounded ${getStatusColor(project.salesStatus)} opacity-60 flex items-center`}
-                                  style={{ ...barStyle, top: '0', height: '40px' }}
-                                  title={`${project.name}: 全体期間`}
-                                >
-                                  <div className="text-sm text-white px-2 truncate overflow-hidden">
-                                    全体
-                                  </div>
-                                </div>
-                              );
-                            })()}
+                        {/* 案件全体の行 */}
+                        <div className="p-4 hover:bg-gray-100 flex flex-col justify-center" style={{ height: `${rowHeight}px` }}>
+                          <div className="text-sm font-bold text-gray-900 truncate" title={project.name}>
+                            {project.name}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1 truncate" title={project.client.name}>
+                            {project.client.name}
                           </div>
                         </div>
 
-                        {/* 工程別のバー */}
-                        {phases.map((phase) => (
-                          <div
-                            key={phase.id}
-                            className="hover:bg-gray-100 border-t border-gray-200 flex items-center justify-center"
-                            style={{ height: `${rowHeight}px` }}
-                          >
+                        {/* 工程の行 */}
+                        {phases.map((phase) => {
+                          const colors = getPhaseColor(phase.type);
+                          return (
+                            <div
+                              key={phase.id}
+                              className="px-4 py-2 hover:bg-gray-100 border-t border-gray-200 flex items-center"
+                              style={{ height: `${rowHeight}px` }}
+                            >
+                              <div className="flex items-center space-x-2 ml-4">
+                                <span className={`inline-block px-2 py-0.5 text-xs font-medium ${colors.bg} ${colors.text} rounded`}>
+                                  {phase.type === 'DESIGN' ? 'デザイン' : phase.type === 'CODING' ? 'コーディング' : 'その他'}
+                                </span>
+                                <span className="text-xs text-gray-600 truncate">{phase.name}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* 右側: カレンダー部分（横スクロール） */}
+                <div
+                  ref={contentScrollRef}
+                  className="flex-1 overflow-x-auto"
+                  onScroll={handleHorizontalScroll}
+                >
+                  <div style={{ minWidth: `${getDaysInMonth().length * 25}px` }}>
+                    {getProjectsWithDates().map((project, projectIndex) => {
+                      const days = getDaysInMonth();
+                      const phases = getPhasesWithDates((project.phases || []) as ProjectPhase[]);
+                      const rowCount = 1 + phases.length;
+                      const rowHeight = 72;
+
+                      return (
+                        <div
+                          key={project.id}
+                          style={{ height: `${rowCount * rowHeight}px` }}
+                          className={`border-b-2 border-gray-300 ${projectIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
+                        >
+                          {/* 案件全体のバー */}
+                          <div className="hover:bg-gray-100 flex items-center justify-center" style={{ height: `${rowHeight}px` }}>
                             <div className="relative w-full" style={{ height: '40px' }}>
                               {(() => {
-                                const barStyle = getBarStyle(phase.startDate, phase.deliveryDate, days);
+                                const barStyle = getBarStyle(project.startDate, project.deliveryDate, days);
                                 if (!barStyle) return null;
-                                const colors = getPhaseColor(phase.type);
                                 return (
                                   <div
-                                    className={`absolute rounded ${colors.bg} flex items-center`}
+                                    className={`absolute rounded ${getStatusColor(project.salesStatus)} opacity-60 flex items-center`}
                                     style={{ ...barStyle, top: '0', height: '40px' }}
-                                    title={`${phase.name}: ${phase.startDate ? format(new Date(phase.startDate), 'M/d', { locale: ja }) : ''} - ${phase.deliveryDate ? format(new Date(phase.deliveryDate), 'M/d', { locale: ja }) : ''}`}
+                                    title={`${project.name}: 全体期間`}
                                   >
-                                    <div className={`text-sm ${colors.text} px-2 truncate overflow-hidden font-medium`}>
-                                      {phase.name}
+                                    <div className="text-sm text-white px-2 truncate overflow-hidden">
+                                      全体
                                     </div>
                                   </div>
                                 );
                               })()}
-                              {/* 初稿日マーカー */}
-                              {phase.firstDraftDate && (() => {
-                                const milestoneDate = new Date(phase.firstDraftDate);
-                                const dayIndex = days.findIndex(day => isSameDay(day, milestoneDate));
-                                if (dayIndex === -1) return null;
-                                const left = (dayIndex * 25) + 12.5;
-                                return (
-                                  <div
-                                    className="absolute w-3 h-3 bg-yellow-400 rounded-full border-2 border-white shadow-sm z-20"
-                                    style={{ left: `${left}px`, top: '18px' }}
-                                    title={`初稿: ${format(milestoneDate, 'M/d', { locale: ja })}`}
-                                  />
-                                );
-                              })()}
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    );
-                  })}
+
+                          {/* 工程別のバー */}
+                          {phases.map((phase) => (
+                            <div
+                              key={phase.id}
+                              className="hover:bg-gray-100 border-t border-gray-200 flex items-center justify-center"
+                              style={{ height: `${rowHeight}px` }}
+                            >
+                              <div className="relative w-full" style={{ height: '40px' }}>
+                                {(() => {
+                                  const barStyle = getBarStyle(phase.startDate, phase.deliveryDate, days);
+                                  if (!barStyle) return null;
+                                  const colors = getPhaseColor(phase.type);
+                                  return (
+                                    <div
+                                      className={`absolute rounded ${colors.bg} flex items-center`}
+                                      style={{ ...barStyle, top: '0', height: '40px' }}
+                                      title={`${phase.name}: ${phase.startDate ? format(new Date(phase.startDate), 'M/d', { locale: ja }) : ''} - ${phase.deliveryDate ? format(new Date(phase.deliveryDate), 'M/d', { locale: ja }) : ''}`}
+                                    >
+                                      <div className={`text-sm ${colors.text} px-2 truncate overflow-hidden font-medium`}>
+                                        {phase.name}
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
+                                {/* 初稿日マーカー */}
+                                {phase.firstDraftDate && (() => {
+                                  const milestoneDate = new Date(phase.firstDraftDate);
+                                  const dayIndex = days.findIndex(day => isSameDay(day, milestoneDate));
+                                  if (dayIndex === -1) return null;
+                                  const left = (dayIndex * 25) + 12.5;
+                                  return (
+                                    <div
+                                      className="absolute w-3 h-3 bg-yellow-400 rounded-full border-2 border-white shadow-sm z-20"
+                                      style={{ left: `${left}px`, top: '18px' }}
+                                      title={`初稿: ${format(milestoneDate, 'M/d', { locale: ja })}`}
+                                    />
+                                  );
+                                })()}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
