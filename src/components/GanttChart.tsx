@@ -42,8 +42,8 @@ export function GanttChart() {
 
   const getProjectsWithDates = () => {
     return projects.filter(project => {
-      // 納品済みの案件は表示しない
-      if (project.salesStatus === 'DELIVERED') return false;
+      // 納品済み かつ 入金確認済みの案件は表示しない
+      if (project.salesStatus === 'DELIVERED' && project.paymentConfirmed) return false;
 
       const hasProjectDates = project.startDate || project.deliveryDate;
       // 日付が入っている工程のみをカウント
