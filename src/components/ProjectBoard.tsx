@@ -29,6 +29,7 @@ export function ProjectBoard() {
   const [editingProject, setEditingProject] = useState<ProjectWithRelations | null>(null);
   const [draggedProject, setDraggedProject] = useState<ProjectWithRelations | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleCreate = () => {
     setEditingProject(null);
@@ -47,11 +48,14 @@ export function ProjectBoard() {
   };
 
   const handleDragStart = (e: React.DragEvent, project: ProjectWithRelations) => {
+    setIsDragging(true);
     setDraggedProject(project);
     e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', project.id.toString());
   };
 
   const handleDragEnd = () => {
+    setTimeout(() => setIsDragging(false), 100);
     setDraggedProject(null);
     setDragOverColumn(null);
   };
@@ -217,7 +221,11 @@ export function ProjectBoard() {
                       className={`bg-white rounded-lg border border-gray-200 p-3 hover:shadow-md transition-shadow cursor-move ${
                         draggedProject?.id === project.id ? 'opacity-50' : ''
                       }`}
-                      onClick={() => handleEdit(project)}
+                      onClick={() => {
+                        if (!isDragging) {
+                          handleEdit(project);
+                        }
+                      }}
                     >
                       {/* ドラッグハンドル */}
                       <div className="flex items-start gap-2">
