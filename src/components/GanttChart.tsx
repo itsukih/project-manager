@@ -5,8 +5,10 @@ import { useProjects } from '@/hooks/useProjects';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ProjectWithRelations, SALES_STATUS_LABELS } from '@/types';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, addMonths, eachDayOfInterval, isSameDay, isSameMonth } from 'date-fns';
 import { ja } from 'date-fns/locale';
+
+type ViewRange = 1 | 3 | 6;
 
 interface ProjectPhase {
   id: number;
@@ -21,23 +23,35 @@ interface ProjectPhase {
 
 export function GanttChart() {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [viewRange, setViewRange] = useState<ViewRange>(1);
   const { projects, loading, error } = useProjects();
   const headerScrollRef = useRef<HTMLDivElement>(null);
   const contentScrollRef = useRef<HTMLDivElement>(null);
+  const isScrollingSyncRef = useRef(false);
 
   // カレンダー部分の横スクロールを同期
   const handleHorizontalScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (isScrollingSyncRef.current) return;
+    isScrollingSyncRef.current = true;
     const scrollLeft = e.currentTarget.scrollLeft;
     if (headerScrollRef.current) {
       headerScrollRef.current.scrollLeft = scrollLeft;
     }
+    requestAnimationFrame(() => {
+      isScrollingSyncRef.current = false;
+    });
   };
 
   const handleHeaderHorizontalScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (isScrollingSyncRef.current) return;
+    isScrollingSyncRef.current = true;
     const scrollLeft = e.currentTarget.scrollLeft;
     if (contentScrollRef.current) {
       contentScrollRef.current.scrollLeft = scrollLeft;
     }
+    requestAnimationFrame(() => {
+      isScrollingSyncRef.current = false;
+    });
   };
 
   const getProjectsWithDates = () => {
@@ -59,10 +73,18 @@ export function GanttChart() {
     return phases.filter(phase => phase.startDate || phase.deliveryDate);
   };
 
-  const getDaysInMonth = () => {
+  const getDaysInRange = () => {
     const start = startOfMonth(currentDate);
-    const end = endOfMonth(currentDate);
+    const end = endOfMonth(addMonths(currentDate, viewRange - 1));
     return eachDayOfInterval({ start, end });
+  };
+
+  const getMonthsInRange = () => {
+    const months: Date[] = [];
+    for (let i = 0; i < viewRange; i++) {
+      months.push(addMonths(startOfMonth(currentDate), i));
+    }
+    return months;
   };
 
   const getBarStyle = (startDateStr: string | null, endDateStr: string | null, days: Date[]) => {
@@ -119,11 +141,22 @@ export function GanttChart() {
   const navigateMonth = (direction: 'prev' | 'next') => {
     const newDate = new Date(currentDate);
     if (direction === 'prev') {
-      newDate.setMonth(newDate.getMonth() - 1);
+      newDate.setMonth(newDate.getMonth() - viewRange);
     } else {
-      newDate.setMonth(newDate.getMonth() + 1);
+      newDate.setMonth(newDate.getMonth() + viewRange);
     }
     setCurrentDate(newDate);
+  };
+
+  const getHeaderTitle = () => {
+    if (viewRange === 1) {
+      return `${currentDate.getFullYear()}年${currentDate.getMonth() + 1}月`;
+    }
+    const endDate = addMonths(currentDate, viewRange - 1);
+    if (currentDate.getFullYear() === endDate.getFullYear()) {
+      return `${currentDate.getFullYear()}年${currentDate.getMonth() + 1}月〜${endDate.getMonth() + 1}月`;
+    }
+    return `${currentDate.getFullYear()}年${currentDate.getMonth() + 1}月〜${endDate.getFullYear()}年${endDate.getMonth() + 1}月`;
   };
 
   if (loading) {
@@ -156,32 +189,52 @@ export function GanttChart() {
         <div className="flex items-center space-x-2">
           <Calendar className="h-5 w-5 text-gray-500" />
           <h2 className="text-xl font-semibold text-gray-900">
-            {currentDate.getFullYear()}年{currentDate.getMonth() + 1}月
+            {getHeaderTitle()}
           </h2>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => navigateMonth('prev')}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setCurrentDate(new Date())}
-          >
-            今月
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => navigateMonth('next')}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+        <div className="flex items-center space-x-4">
+          {/* 表示期間切り替え */}
+          <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
+            {([1, 3, 6] as ViewRange[]).map((range) => (
+              <button
+                key={range}
+                onClick={() => setViewRange(range)}
+                className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                  viewRange === range
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                {range}ヶ月
+              </button>
+            ))}
+          </div>
+
+          {/* ナビゲーションボタン */}
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => navigateMonth('prev')}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setCurrentDate(new Date())}
+            >
+              今月
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => navigateMonth('next')}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -202,7 +255,7 @@ export function GanttChart() {
             <div className="flex border-b border-gray-200 flex-shrink-0">
               {/* 左側ヘッダー */}
               <div className="w-64 flex-shrink-0 bg-gray-50 border-r border-gray-200">
-                <div className="flex items-center px-4" style={{ height: '44px' }}>
+                <div className="flex items-center px-4" style={{ height: viewRange > 1 ? '64px' : '44px' }}>
                   <div className="text-sm font-medium text-gray-900">案件名</div>
                 </div>
               </div>
@@ -213,24 +266,49 @@ export function GanttChart() {
                 onScroll={handleHeaderHorizontalScroll}
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
-                <div className="flex" style={{ minWidth: `${getDaysInMonth().length * 25}px`, height: '44px' }}>
-                  {getDaysInMonth().map((day) => (
-                    <div
-                      key={day.getTime()}
-                      className={`text-center text-xs flex items-center justify-center border-r border-gray-200 ${
-                        isSameDay(day, new Date()) ? 'bg-blue-100 text-blue-800' : 'text-gray-500 bg-white'
-                      }`}
-                      style={{ minWidth: '25px', width: '25px' }}
-                    >
-                      {format(day, 'd', { locale: ja })}
+                <div style={{ minWidth: `${getDaysInRange().length * 25}px` }}>
+                  {/* 月ラベル行（複数月表示時のみ） */}
+                  {viewRange > 1 && (
+                    <div className="flex" style={{ height: '24px' }}>
+                      {getMonthsInRange().map((month) => {
+                        const daysInMonth = eachDayOfInterval({
+                          start: startOfMonth(month),
+                          end: endOfMonth(month)
+                        }).length;
+                        return (
+                          <div
+                            key={month.getTime()}
+                            className="text-center text-xs font-medium text-gray-700 bg-gray-100 border-r-2 border-gray-300 flex items-center justify-center"
+                            style={{ width: `${daysInMonth * 25}px` }}
+                          >
+                            {format(month, 'yyyy年M月', { locale: ja })}
+                          </div>
+                        );
+                      })}
                     </div>
-                  ))}
+                  )}
+                  {/* 日付行 */}
+                  <div className="flex" style={{ height: viewRange > 1 ? '40px' : '44px' }}>
+                    {getDaysInRange().map((day) => (
+                      <div
+                        key={day.getTime()}
+                        className={`text-center text-xs flex items-center justify-center border-r border-gray-200 ${
+                          isSameDay(day, new Date()) ? 'bg-blue-100 text-blue-800' : 'text-gray-500 bg-white'
+                        }`}
+                        style={{ minWidth: '25px', width: '25px' }}
+                      >
+                        {format(day, 'd', { locale: ja })}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
+              {/* スクロールバー幅分のスペーサー（scrollbar-gutterに対応） */}
+              <div className="flex-shrink-0 bg-gray-50" style={{ width: '16px' }}></div>
             </div>
 
             {/* コンテンツ行（縦スクロール） */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-scroll" style={{ scrollbarGutter: 'stable' }}>
               <div className="flex">
                 {/* 左側: 案件名リスト */}
                 <div className="w-64 flex-shrink-0 bg-gray-50 border-r border-gray-200">
@@ -281,12 +359,30 @@ export function GanttChart() {
                 {/* 右側: カレンダー部分（横スクロール） */}
                 <div
                   ref={contentScrollRef}
-                  className="flex-1 overflow-x-auto"
+                  className="flex-1 overflow-x-auto scrollbar-hide"
                   onScroll={handleHorizontalScroll}
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
-                  <div style={{ minWidth: `${getDaysInMonth().length * 25}px` }}>
+                  <div className="relative" style={{ minWidth: `${getDaysInRange().length * 25}px` }}>
+                    {/* 月境界線（複数月表示時） */}
+                    {viewRange > 1 && getMonthsInRange().slice(1).map((month, index) => {
+                      const previousMonths = getMonthsInRange().slice(0, index + 1);
+                      const leftPosition = previousMonths.reduce((acc, m) => {
+                        return acc + eachDayOfInterval({
+                          start: startOfMonth(m),
+                          end: endOfMonth(m)
+                        }).length * 25;
+                      }, 0);
+                      return (
+                        <div
+                          key={month.getTime()}
+                          className="absolute top-0 bottom-0 bg-gray-300 z-10"
+                          style={{ left: `${leftPosition - 1}px`, width: '2px' }}
+                        />
+                      );
+                    })}
                     {getProjectsWithDates().map((project, projectIndex) => {
-                      const days = getDaysInMonth();
+                      const days = getDaysInRange();
                       const phases = getPhasesWithDates((project.phases || []) as ProjectPhase[]);
                       const rowCount = 1 + phases.length;
                       const rowHeight = 72;

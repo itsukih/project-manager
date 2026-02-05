@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Edit, Trash2, Download } from 'lucide-react';
+import { Plus, Edit, Trash2, Download, Search } from 'lucide-react';
 import { useClients } from '@/hooks/useClients';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -15,6 +15,7 @@ export function ClientManagement() {
   const [saving, setSaving] = useState(false);
   const [sortBy, setSortBy] = useState<'rank' | 'name' | 'updated'>('rank');
   const [showRankE, setShowRankE] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const currentMonth = getCurrentMonth();
 
@@ -246,7 +247,17 @@ export function ClientManagement() {
     }
   };
 
-  const filteredClients = showRankE ? clients : clients.filter(client => client.rank !== 'E');
+  const filteredClients = clients.filter(client => {
+    // ランクEフィルター
+    if (!showRankE && client.rank === 'E') return false;
+    // 検索フィルター
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      return client.name.toLowerCase().includes(query) ||
+        (client.contactPerson && client.contactPerson.toLowerCase().includes(query));
+    }
+    return true;
+  });
 
   const sortedClients = [...filteredClients].sort((a, b) => {
     if (sortBy === 'rank') {
@@ -286,7 +297,7 @@ export function ClientManagement() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap justify-between items-center gap-4">
-        <div className="flex gap-3">
+        <div className="flex gap-3 items-center">
           <Button onClick={handleCreate}>
             <Plus className="h-4 w-4 mr-2" />
             新規クライアント
@@ -295,6 +306,16 @@ export function ClientManagement() {
             <Download className="h-4 w-4 mr-2" />
             CSV エクスポート
           </Button>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="会社名・担当者名で検索"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent w-56"
+            />
+          </div>
         </div>
 
         <div className="flex items-center gap-4">

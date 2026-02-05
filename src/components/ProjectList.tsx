@@ -31,13 +31,24 @@ export function ProjectList() {
   const [editingProject, setEditingProject] = useState<ProjectWithRelations | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'orderMonth' | 'consultationMonth'>('list');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // 検索フィルター
+  const filteredProjects = useMemo(() => {
+    if (!searchQuery.trim()) return projects;
+    const query = searchQuery.toLowerCase();
+    return projects.filter(project =>
+      project.name.toLowerCase().includes(query) ||
+      project.client.name.toLowerCase().includes(query)
+    );
+  }, [projects, searchQuery]);
 
   const groupByDate = (
     dateKey: 'orderDate' | 'consultationDate',
     noDateLabel: string
   ) => {
     const groups: Record<string, ProjectWithRelations[]> = {};
-    for (const project of projects) {
+    for (const project of filteredProjects) {
       const dateVal = project[dateKey];
       const key = dateVal
         ? format(new Date(dateVal), 'yyyy-MM')
@@ -61,12 +72,12 @@ export function ProjectList() {
 
   const projectsByMonth = useMemo(
     () => groupByDate('orderDate', '受注日未設定'),
-    [projects]
+    [filteredProjects]
   );
 
   const projectsByConsultation = useMemo(
     () => groupByDate('consultationDate', '相談日未設定'),
-    [projects]
+    [filteredProjects]
   );
 
   const handleEdit = (project: ProjectWithRelations) => {
@@ -150,6 +161,16 @@ export function ProjectList() {
             <Filter className="h-4 w-4" />
             <span>フィルター</span>
           </Button>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="案件名・クライアント名で検索"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent w-64"
+            />
+          </div>
         </div>
 
         <div className="flex items-center gap-4">
@@ -192,7 +213,8 @@ export function ProjectList() {
             </button>
           </div>
           <div className="text-sm text-gray-600">
-            {projects.length}件の案件
+            {filteredProjects.length}件の案件
+            {searchQuery && ` (${projects.length}件中)`}
           </div>
         </div>
       </div>
@@ -304,7 +326,7 @@ export function ProjectList() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {projects.map((project) => (
+                {filteredProjects.map((project) => (
                   <ProjectRow
                     key={project.id}
                     project={project}

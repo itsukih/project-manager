@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Plus, Edit, Trash2, FileText, Upload } from 'lucide-react';
+import { Plus, Edit, Trash2, FileText, Upload, Search } from 'lucide-react';
 import { useOutsourcingPartners } from '@/hooks/useOutsourcingPartners';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -11,16 +11,6 @@ import { OutsourcingPartner, PartnerType, PARTNER_TYPE_LABELS } from '@/types';
 
 export function PartnerManagement() {
   const { partners, loading, error, refresh } = useOutsourcingPartners();
-
-  // パートナーを種別ごとにグループ化
-  const groupedPartners = partners.reduce((groups, partner) => {
-    const type = partner.type;
-    if (!groups[type]) {
-      groups[type] = [];
-    }
-    groups[type].push(partner);
-    return groups;
-  }, {} as Record<PartnerType, OutsourcingPartner[]>);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingPartner, setEditingPartner] = useState<OutsourcingPartner | null>(null);
   const [partnerName, setPartnerName] = useState('');
@@ -32,6 +22,24 @@ export function PartnerManagement() {
   const [contractPdfName, setContractPdfName] = useState('');
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // 検索フィルター
+  const filteredPartners = searchQuery.trim()
+    ? partners.filter(partner =>
+        partner.name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : partners;
+
+  // パートナーを種別ごとにグループ化
+  const groupedPartners = filteredPartners.reduce((groups, partner) => {
+    const type = partner.type;
+    if (!groups[type]) {
+      groups[type] = [];
+    }
+    groups[type].push(partner);
+    return groups;
+  }, {} as Record<PartnerType, OutsourcingPartner[]>);
 
   const handleCreate = () => {
     setEditingPartner(null);
@@ -186,23 +194,40 @@ export function PartnerManagement() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div className="text-sm text-gray-600">
-          {partners.length}件の外注パートナー
+        <div className="flex items-center gap-4">
+          <Button onClick={handleCreate}>
+            <Plus className="h-4 w-4 mr-2" />
+            新規パートナー
+          </Button>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="パートナー名で検索"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent w-48"
+            />
+          </div>
         </div>
-        <Button onClick={handleCreate}>
-          <Plus className="h-4 w-4 mr-2" />
-          新規パートナー
-        </Button>
+        <div className="text-sm text-gray-600">
+          {filteredPartners.length}件の外注パートナー
+          {searchQuery && ` (${partners.length}件中)`}
+        </div>
       </div>
 
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        {partners.length === 0 ? (
+        {filteredPartners.length === 0 ? (
           <div className="text-center py-12">
-            <div className="text-gray-500 mb-4">外注パートナーが登録されていません</div>
-            <Button onClick={handleCreate}>
-              <Plus className="h-4 w-4 mr-2" />
-              最初のパートナーを登録
-            </Button>
+            <div className="text-gray-500 mb-4">
+              {searchQuery ? '該当するパートナーが見つかりません' : '外注パートナーが登録されていません'}
+            </div>
+            {!searchQuery && (
+              <Button onClick={handleCreate}>
+                <Plus className="h-4 w-4 mr-2" />
+                最初のパートナーを登録
+              </Button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">

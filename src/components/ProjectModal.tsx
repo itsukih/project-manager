@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -119,12 +119,17 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
     }
   }, [project, reset]);
 
+  // 請求書発行チェック時に、チェックした日の翌月末を支払い期限に設定
+  const prevInvoiceIssued = useRef(watchInvoiceIssued);
   useEffect(() => {
-    if (watchInvoiceIssued && watchOrderDate && !watch('paymentDueDate')) {
-      const dueDate = endOfMonth(addMonths(watchOrderDate, 1));
+    // チェックが false → true に変わった時のみ設定
+    if (watchInvoiceIssued && !prevInvoiceIssued.current) {
+      const today = new Date();
+      const dueDate = endOfMonth(addMonths(today, 1));
       setValue('paymentDueDate', dueDate);
     }
-  }, [watchInvoiceIssued, watchOrderDate, setValue, watch]);
+    prevInvoiceIssued.current = watchInvoiceIssued;
+  }, [watchInvoiceIssued, setValue]);
 
   const onSubmit = async (data: ProjectForm) => {
     setLoading(true);

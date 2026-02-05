@@ -66,14 +66,18 @@ export const CONTACT_TYPE_OPTIONS = [
   'EMAIL',
   'CHATWORK',
   'SLACK',
-  'SNS'
+  'SNS',
+  'LINE',
+  'OTHER'
 ] as const;
 
 export const CONTACT_TYPE_LABELS: Record<string, string> = {
   EMAIL: 'メール',
   CHATWORK: 'Chatwork',
   SLACK: 'Slack',
-  SNS: 'SNS'
+  SNS: 'SNS',
+  LINE: 'LINE',
+  OTHER: 'その他'
 };
 
 export interface RegularContactTemplate {
