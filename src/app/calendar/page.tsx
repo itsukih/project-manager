@@ -121,7 +121,7 @@ export default function CalendarPage() {
 
   // 週ごとにタスクの期間バーを計算
   const getTaskBarsForWeek = (weekStart: Date) => {
-    const weekDays = [];
+    const weekDays: Date[] = [];
     for (let i = 0; i < 7; i++) {
       const day = new Date(weekStart);
       day.setDate(day.getDate() + i);

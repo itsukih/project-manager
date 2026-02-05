@@ -23,6 +23,11 @@ export async function GET(
             outsourcingPartner: true,
           },
         },
+        estimates: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
       },
     });
 
@@ -63,6 +68,9 @@ export async function PUT(
       deliveryDate: data.deliveryDate ? new Date(data.deliveryDate) : null,
       hasOutsourcing: data.hasOutsourcing || false,
       outsourcingPartnerSheetUrl: data.outsourcingPartnerSheetUrl || null,
+      outsourcingInvoiceReceived: data.outsourcingInvoiceReceived || false,
+      outsourcingPaymentMade: data.outsourcingPaymentMade || false,
+      outsourcingPaymentDate: data.outsourcingPaymentDate ? new Date(data.outsourcingPaymentDate) : null,
       clientSheetUrl: data.clientSheetUrl || null,
       amount: data.amount || 0,
       outsourcingCost: data.outsourcingCost || 0,
@@ -93,13 +101,31 @@ export async function PUT(
     });
 
     // パートナー関係を更新
-    if (data.outsourcingPartnerIds !== undefined) {
+    if (data.partnerData !== undefined) {
+      // partnerData形式: [{ partnerId, invoiceReceived, paymentMade, paymentDate }]
       // 既存の関係を削除
       await prisma.projectOutsourcingPartner.deleteMany({
         where: { projectId: id },
       });
 
-      // 新しい関係を作成
+      // 新しい関係を作成（請求書・振込情報付き）
+      if (data.partnerData.length > 0) {
+        await prisma.projectOutsourcingPartner.createMany({
+          data: data.partnerData.map((pd: { partnerId: number; invoiceReceived: boolean; paymentMade: boolean; paymentDate?: string }) => ({
+            projectId: id,
+            outsourcingPartnerId: pd.partnerId,
+            invoiceReceived: pd.invoiceReceived || false,
+            paymentMade: pd.paymentMade || false,
+            paymentDate: pd.paymentDate ? new Date(pd.paymentDate) : null,
+          })),
+        });
+      }
+    } else if (data.outsourcingPartnerIds !== undefined) {
+      // 後方互換性のため、従来形式もサポート
+      await prisma.projectOutsourcingPartner.deleteMany({
+        where: { projectId: id },
+      });
+
       if (data.outsourcingPartnerIds.length > 0) {
         await prisma.projectOutsourcingPartner.createMany({
           data: data.outsourcingPartnerIds.map((partnerId: number) => ({
@@ -118,6 +144,11 @@ export async function PUT(
         projectPartners: {
           include: {
             outsourcingPartner: true,
+          },
+        },
+        estimates: {
+          orderBy: {
+            createdAt: 'desc',
           },
         },
       },

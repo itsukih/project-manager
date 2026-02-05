@@ -51,13 +51,21 @@ export function ProjectPhases({ projectId }: ProjectPhasesProps) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [isAdding, setIsAdding] = useState(false);
 
-  const [formData, setFormData] = useState({
-    type: 'DESIGN' as const,
+  const [formData, setFormData] = useState<{
+    type: 'DESIGN' | 'CODING' | 'OTHER';
+    name: string;
+    startDate: Date | null;
+    firstDraftDate: Date | null;
+    deliveryDate: Date | null;
+    status: 'NOT_STARTED' | 'IN_PROGRESS' | 'FIRST_DRAFT' | 'REVISING' | 'COMPLETED';
+    notes: string;
+  }>({
+    type: 'DESIGN',
     name: '',
-    startDate: null as Date | null,
-    firstDraftDate: null as Date | null,
-    deliveryDate: null as Date | null,
-    status: 'NOT_STARTED' as const,
+    startDate: null,
+    firstDraftDate: null,
+    deliveryDate: null,
+    status: 'NOT_STARTED',
     notes: '',
   });
 

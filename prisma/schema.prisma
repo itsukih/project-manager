@@ -92,8 +92,16 @@ model Project {
   outsourcingPartnerSheetUrl String?
   projectPartners           ProjectOutsourcingPartner[]
 
+  // 外注支払い管理
+  outsourcingInvoiceReceived Boolean  @default(false)  // パートナーから請求書を受領したか
+  outsourcingPaymentMade     Boolean  @default(false)  // パートナーへ振込したか
+  outsourcingPaymentDate     DateTime?                 // パートナーへの振込日
+
   // クライアント共有
   clientSheetUrl            String?
+
+  // 見積り（複数対応）
+  estimates                 ProjectEstimate[]
 
   // 請求・支払い関連
   amount                    Int       @default(0)
@@ -142,6 +150,11 @@ model ProjectOutsourcingPartner {
 
   project               Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
   outsourcingPartner    OutsourcingPartner  @relation(fields: [outsourcingPartnerId], references: [id], onDelete: Cascade)
+
+  // 請求・支払い管理
+  invoiceReceived       Boolean             @default(false)  // パートナーから請求書を受領したか
+  paymentMade           Boolean             @default(false)  // パートナーへ振込したか
+  paymentDate           DateTime?                            // 振込日
 
   createdAt             DateTime            @default(now())
 
@@ -281,4 +294,27 @@ model Template {
   updatedAt   DateTime @updatedAt
 
   @@map("templates")
+}
+
+// 見積り管理（複数対応）
+model ProjectEstimate {
+  id          Int           @id @default(autoincrement())
+  projectId   Int
+  project     Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  type        EstimateType  // CLIENT（クライアント向け）or OUTSOURCING（外注から）
+  description String?       // 見積りの説明（例：初回見積り、追加見積り、修正見積り等）
+  url         String?       // 見積りURL（Googleドライブ等）
+  pdfPath     String?       // PDFファイルパス
+  pdfName     String?       // PDFファイル名
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("project_estimates")
+}
+
+enum EstimateType {
+  CLIENT        // クライアント向け
+  OUTSOURCING   // 外注パートナーから
 }

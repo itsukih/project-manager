@@ -36,7 +36,11 @@ export async function PATCH(request: NextRequest) {
           data: updateData,
           include: {
             client: true,
-            outsourcingPartner: true,
+            projectPartners: {
+              include: {
+                outsourcingPartner: true,
+              },
+            },
           },
         });
       })

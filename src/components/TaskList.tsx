@@ -1006,7 +1006,7 @@ export function TaskList({ categoryFilter }: TaskListProps) {
           isOpen={modalOpen}
           onClose={handleModalClose}
           task={editingTask}
-          parentTask={parentTaskForSubTask}
+          parentTask={parentTaskForSubTask ?? undefined}
         />
       )}
     </div>

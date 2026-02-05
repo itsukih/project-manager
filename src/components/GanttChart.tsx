@@ -61,7 +61,7 @@ export function GanttChart() {
 
       const hasProjectDates = project.startDate || project.deliveryDate;
       // 日付が入っている工程のみをカウント
-      const phasesWithDates = (project.phases || []).filter((phase: ProjectPhase) =>
+      const phasesWithDates = (project.phases || []).filter(phase =>
         phase.startDate || phase.deliveryDate
       );
       return hasProjectDates || phasesWithDates.length > 0;
@@ -87,9 +87,9 @@ export function GanttChart() {
     return months;
   };
 
-  const getBarStyle = (startDateStr: string | null, endDateStr: string | null, days: Date[]) => {
-    const startDate = startDateStr ? new Date(startDateStr) : null;
-    const endDate = endDateStr ? new Date(endDateStr) : null;
+  const getBarStyle = (startDateInput: Date | string | null, endDateInput: Date | string | null, days: Date[]) => {
+    const startDate = startDateInput ? new Date(startDateInput) : null;
+    const endDate = endDateInput ? new Date(endDateInput) : null;
 
     if (!startDate && !endDate) return null;
 

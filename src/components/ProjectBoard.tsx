@@ -130,7 +130,7 @@ export function ProjectBoard() {
     }).format(amount);
   };
 
-  const formatDate = (date: string | null) => {
+  const formatDate = (date: Date | string | null) => {
     if (!date) return '-';
     return format(new Date(date), 'MM/dd', { locale: ja });
   };

@@ -60,6 +60,11 @@ export async function GET(request: NextRequest) {
             createdAt: 'asc',
           },
         },
+        estimates: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
       },
       orderBy,
     });
@@ -88,6 +93,9 @@ export async function POST(request: NextRequest) {
       deliveryDate: data.deliveryDate ? new Date(data.deliveryDate) : null,
       hasOutsourcing: data.hasOutsourcing || false,
       outsourcingPartnerSheetUrl: data.outsourcingPartnerSheetUrl || null,
+      outsourcingInvoiceReceived: data.outsourcingInvoiceReceived || false,
+      outsourcingPaymentMade: data.outsourcingPaymentMade || false,
+      outsourcingPaymentDate: data.outsourcingPaymentDate ? new Date(data.outsourcingPaymentDate) : null,
       clientSheetUrl: data.clientSheetUrl || null,
       amount: data.amount || 0,
       outsourcingCost: data.outsourcingCost || 0,
@@ -115,7 +123,19 @@ export async function POST(request: NextRequest) {
     });
 
     // パートナー関係を作成
-    if (data.outsourcingPartnerIds && data.outsourcingPartnerIds.length > 0) {
+    if (data.partnerData && data.partnerData.length > 0) {
+      // partnerData形式: [{ partnerId, invoiceReceived, paymentMade, paymentDate }]
+      await prisma.projectOutsourcingPartner.createMany({
+        data: data.partnerData.map((pd: { partnerId: number; invoiceReceived: boolean; paymentMade: boolean; paymentDate?: string }) => ({
+          projectId: project.id,
+          outsourcingPartnerId: pd.partnerId,
+          invoiceReceived: pd.invoiceReceived || false,
+          paymentMade: pd.paymentMade || false,
+          paymentDate: pd.paymentDate ? new Date(pd.paymentDate) : null,
+        })),
+      });
+    } else if (data.outsourcingPartnerIds && data.outsourcingPartnerIds.length > 0) {
+      // 後方互換性のため、従来形式もサポート
       await prisma.projectOutsourcingPartner.createMany({
         data: data.outsourcingPartnerIds.map((partnerId: number) => ({
           projectId: project.id,
@@ -132,6 +152,11 @@ export async function POST(request: NextRequest) {
         projectPartners: {
           include: {
             outsourcingPartner: true,
+          },
+        },
+        estimates: {
+          orderBy: {
+            createdAt: 'desc',
           },
         },
       },

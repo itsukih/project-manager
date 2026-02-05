@@ -123,7 +123,7 @@ export function ProjectList() {
     }).format(amount);
   };
 
-  const formatDate = (date: string | null) => {
+  const formatDate = (date: Date | string | null) => {
     if (!date) return '-';
     return format(new Date(date), 'yyyy/MM/dd', { locale: ja });
   };
@@ -412,7 +412,7 @@ function ProjectRow({
   onEdit: (p: ProjectWithRelations) => void;
   onDelete: (p: ProjectWithRelations) => void;
   formatCurrency: (n: number) => string;
-  formatDate: (d: string | null) => string;
+  formatDate: (d: Date | string | null) => string;
 }) {
   return (
     <tr className="hover:bg-gray-50">

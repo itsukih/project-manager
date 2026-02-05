@@ -1,10 +1,21 @@
-import { Project, Client, OutsourcingPartner, SalesStatus, ProgressStatus, PartnerType, Task, TaskCategory, TaskPriority, TaskStatus } from '@prisma/client';
+import type { Project, Client, OutsourcingPartner, Task, ProjectPhase, ProjectEstimate } from '@prisma/client';
+import { SalesStatus, ProgressStatus, PartnerType, TaskCategory, TaskPriority, TaskStatus, EstimateType } from '@prisma/client';
 
 export type ProjectWithRelations = Project & {
   client: Client;
   projectPartners?: {
+    id: number;
     outsourcingPartner: OutsourcingPartner;
+    invoiceReceived: boolean;
+    paymentMade: boolean;
+    paymentDate: Date | null;
   }[];
+  phases?: ProjectPhase[];
+  estimates?: ProjectEstimate[];
+  // 外注支払い管理
+  outsourcingInvoiceReceived?: boolean;
+  outsourcingPaymentMade?: boolean;
+  outsourcingPaymentDate?: Date | null;
 };
 
 export type TaskWithRelations = Task & {
@@ -13,7 +24,8 @@ export type TaskWithRelations = Task & {
   subTasks?: Task[];
 };
 
-export { SalesStatus, ProgressStatus, Client, OutsourcingPartner, PartnerType, Task, TaskCategory, TaskPriority, TaskStatus };
+export type { Client, OutsourcingPartner, Task, ProjectEstimate };
+export { SalesStatus, ProgressStatus, PartnerType, TaskCategory, TaskPriority, TaskStatus, EstimateType };
 
 export const SALES_STATUS_LABELS = {
   CONSULTING: '相談中',

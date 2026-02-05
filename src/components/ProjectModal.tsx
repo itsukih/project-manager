@@ -11,11 +11,12 @@ import { Select } from '@/components/ui/Select';
 import { DatePicker } from '@/components/ui/DatePicker';
 import { useClients } from '@/hooks/useClients';
 import { useOutsourcingPartners } from '@/hooks/useOutsourcingPartners';
-import { ProjectWithRelations, SalesStatus, ProgressStatus, PartnerType } from '@/types';
+import { ProjectWithRelations, SalesStatus, ProgressStatus, EstimateType, ProjectEstimate } from '@/types';
 import { addMonths, endOfMonth } from 'date-fns';
 import { ProjectPhases } from '@/components/ProjectPhases';
 import { QuickAddClientModal } from '@/components/QuickAddClientModal';
 import { QuickAddPartnerModal } from '@/components/QuickAddPartnerModal';
+import { Plus, Trash2, ExternalLink, FileText } from 'lucide-react';
 
 const projectSchema = z.object({
   name: z.string().min(1, '案件名は必須です'),
@@ -31,6 +32,9 @@ const projectSchema = z.object({
   hasOutsourcing: z.boolean(),
   outsourcingPartnerIds: z.array(z.string()).optional(),
   outsourcingPartnerSheetUrl: z.string().optional(),
+  outsourcingInvoiceReceived: z.boolean(),
+  outsourcingPaymentMade: z.boolean(),
+  outsourcingPaymentDate: z.date().optional().nullable(),
   clientSheetUrl: z.string().optional(),
   amount: z.number().min(0, '金額は0以上で入力してください'),
   outsourcingCost: z.number().min(0, '外注費は0以上で入力してください'),
@@ -47,12 +51,32 @@ interface ProjectModalProps {
   project?: ProjectWithRelations | null;
 }
 
+// 見積り入力用の型
+interface EstimateInput {
+  type: 'CLIENT' | 'OUTSOURCING';
+  description: string;
+  url: string;
+  pdfPath?: string;
+  pdfName?: string;
+}
+
 export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
   const [loading, setLoading] = useState(false);
   const { clients, refresh: refreshClients } = useClients();
   const { partners, refresh: refreshPartners } = useOutsourcingPartners();
   const [showClientModal, setShowClientModal] = useState(false);
   const [showPartnerModal, setShowPartnerModal] = useState(false);
+
+  // 見積り管理
+  const [estimates, setEstimates] = useState<ProjectEstimate[]>([]);
+  const [showEstimateForm, setShowEstimateForm] = useState(false);
+  const [estimateFormType, setEstimateFormType] = useState<'CLIENT' | 'OUTSOURCING'>('CLIENT');
+  const [newEstimate, setNewEstimate] = useState<EstimateInput>({
+    type: 'CLIENT',
+    description: '',
+    url: '',
+  });
+  const [uploadingPdf, setUploadingPdf] = useState(false);
 
   const {
     register,
@@ -68,6 +92,8 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
       progressStatus: ProgressStatus.NOT_STARTED,
       hasOutsourcing: false,
       outsourcingPartnerIds: [],
+      outsourcingInvoiceReceived: false,
+      outsourcingPaymentMade: false,
       amount: 0,
       outsourcingCost: 0,
       invoiceIssued: false,
@@ -78,9 +104,14 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
   const watchHasOutsourcing = watch('hasOutsourcing');
   const watchInvoiceIssued = watch('invoiceIssued');
   const watchOrderDate = watch('orderDate');
-  const watchOutsourcingPartnerIds = watch('outsourcingPartnerIds') || [];
+  const watchOutsourcingPartnerIds: string[] = watch('outsourcingPartnerIds') || [];
 
   useEffect(() => {
+    // クライアント一覧がロードされるまで待つ（編集時のみ）
+    if (project && clients.length === 0) {
+      return;
+    }
+
     if (project) {
       reset({
         name: project.name,
@@ -98,6 +129,9 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
           ? project.projectPartners.map(pp => pp.outsourcingPartner.id.toString())
           : [],
         outsourcingPartnerSheetUrl: project.outsourcingPartnerSheetUrl || '',
+        outsourcingInvoiceReceived: project.outsourcingInvoiceReceived || false,
+        outsourcingPaymentMade: project.outsourcingPaymentMade || false,
+        outsourcingPaymentDate: project.outsourcingPaymentDate ? new Date(project.outsourcingPaymentDate) : null,
         clientSheetUrl: project.clientSheetUrl || '',
         amount: project.amount,
         outsourcingCost: project.outsourcingCost || 0,
@@ -105,19 +139,25 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
         paymentConfirmed: project.paymentConfirmed,
         paymentDueDate: project.paymentDueDate ? new Date(project.paymentDueDate) : null,
       });
+      // 見積りをセット
+      setEstimates(project.estimates || []);
     } else {
       reset({
         salesStatus: SalesStatus.CONSULTING,
         progressStatus: ProgressStatus.NOT_STARTED,
         hasOutsourcing: false,
         outsourcingPartnerIds: [],
+        outsourcingInvoiceReceived: false,
+        outsourcingPaymentMade: false,
         amount: 0,
         outsourcingCost: 0,
         invoiceIssued: false,
         paymentConfirmed: false,
       });
+      // 新規作成時は見積りをリセット
+      setEstimates([]);
     }
-  }, [project, reset]);
+  }, [project, reset, clients]);
 
   // 請求書発行チェック時に、チェックした日の翌月末を支払い期限に設定
   const prevInvoiceIssued = useRef(watchInvoiceIssued);
@@ -130,6 +170,96 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
     }
     prevInvoiceIssued.current = watchInvoiceIssued;
   }, [watchInvoiceIssued, setValue]);
+
+  // 外注請求書受領チェック時に、チェックした日の翌月末を振込予定日に設定
+  const watchOutsourcingInvoiceReceived = watch('outsourcingInvoiceReceived');
+  const prevOutsourcingInvoiceReceived = useRef(watchOutsourcingInvoiceReceived);
+  useEffect(() => {
+    // チェックが false → true に変わった時のみ設定
+    if (watchOutsourcingInvoiceReceived && !prevOutsourcingInvoiceReceived.current) {
+      const today = new Date();
+      const paymentDate = endOfMonth(addMonths(today, 1));
+      setValue('outsourcingPaymentDate', paymentDate);
+    }
+    prevOutsourcingInvoiceReceived.current = watchOutsourcingInvoiceReceived;
+  }, [watchOutsourcingInvoiceReceived, setValue]);
+
+  // 見積りPDFアップロード処理
+  const handleEstimatePdfUpload = async (file: File) => {
+    setUploadingPdf(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', newEstimate.type.toLowerCase());
+
+      const response = await fetch('/api/projects/upload-estimate', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('アップロードに失敗しました');
+      }
+
+      const { pdfPath, pdfName } = await response.json();
+      setNewEstimate(prev => ({ ...prev, pdfPath, pdfName }));
+    } catch (error) {
+      alert('PDFのアップロードに失敗しました');
+    } finally {
+      setUploadingPdf(false);
+    }
+  };
+
+  // 見積り追加
+  const handleAddEstimate = async () => {
+    if (!project) return;
+    if (!newEstimate.url && !newEstimate.pdfPath) {
+      alert('URLまたはPDFを指定してください');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/projects/${project.id}/estimates`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newEstimate),
+      });
+
+      if (!response.ok) throw new Error('見積りの追加に失敗しました');
+
+      const addedEstimate = await response.json();
+      setEstimates(prev => [addedEstimate, ...prev]);
+      setNewEstimate({ type: estimateFormType, description: '', url: '' });
+      setShowEstimateForm(false);
+    } catch (error) {
+      alert('見積りの追加に失敗しました');
+    }
+  };
+
+  // 見積り削除
+  const handleDeleteEstimate = async (estimateId: number) => {
+    if (!project) return;
+    if (!confirm('この見積りを削除しますか？')) return;
+
+    try {
+      const response = await fetch(`/api/projects/${project.id}/estimates/${estimateId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) throw new Error('見積りの削除に失敗しました');
+
+      setEstimates(prev => prev.filter(e => e.id !== estimateId));
+    } catch (error) {
+      alert('見積りの削除に失敗しました');
+    }
+  };
+
+  // 見積りフォームを開く
+  const openEstimateForm = (type: 'CLIENT' | 'OUTSOURCING') => {
+    setEstimateFormType(type);
+    setNewEstimate({ type, description: '', url: '' });
+    setShowEstimateForm(true);
+  };
 
   const onSubmit = async (data: ProjectForm) => {
     setLoading(true);
@@ -145,6 +275,7 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
         firstDraftDate: data.firstDraftDate?.toISOString(),
         deliveryDate: data.deliveryDate?.toISOString(),
         paymentDueDate: data.paymentDueDate?.toISOString(),
+        outsourcingPaymentDate: data.outsourcingPaymentDate?.toISOString(),
       };
 
       const url = project ? `/api/projects/${project.id}` : '/api/projects';
@@ -359,7 +490,8 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
           </div>
 
           {watchHasOutsourcing && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   外注パートナー（複数選択可）
@@ -416,6 +548,91 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
                 />
               </div>
             </div>
+
+            {/* 外注パートナーからの見積り（リスト表示） */}
+            {project && (
+              <div className="mt-4 p-4 bg-orange-50 rounded-lg border border-orange-200">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-medium text-orange-800">📄 外注パートナーからの見積り</h4>
+                  <button
+                    type="button"
+                    onClick={() => openEstimateForm('OUTSOURCING')}
+                    className="flex items-center gap-1 text-xs text-orange-600 hover:text-orange-800"
+                  >
+                    <Plus size={14} />
+                    追加
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {estimates.filter(e => e.type === 'OUTSOURCING').length === 0 ? (
+                    <p className="text-sm text-gray-500">見積りがありません</p>
+                  ) : (
+                    estimates.filter(e => e.type === 'OUTSOURCING').map(estimate => (
+                      <div key={estimate.id} className="flex items-center justify-between bg-white p-2 rounded border border-orange-100">
+                        <div className="flex items-center gap-2 text-sm">
+                          {estimate.pdfName ? (
+                            <a href={estimate.pdfPath || '#'} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-orange-600 hover:underline">
+                              <FileText size={14} />
+                              {estimate.pdfName}
+                            </a>
+                          ) : estimate.url ? (
+                            <a href={estimate.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-orange-600 hover:underline">
+                              <ExternalLink size={14} />
+                              {estimate.description || 'リンク'}
+                            </a>
+                          ) : null}
+                          {estimate.description && !estimate.url && !estimate.pdfName && (
+                            <span className="text-gray-600">{estimate.description}</span>
+                          )}
+                          {estimate.description && (estimate.url || estimate.pdfName) && (
+                            <span className="text-gray-500 text-xs">({estimate.description})</span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteEstimate(estimate.id)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 外注支払い管理 */}
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <h4 className="text-sm font-medium text-gray-700 mb-3">外注支払い管理</h4>
+              <div className="flex flex-wrap gap-4 items-center">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    {...register('outsourcingInvoiceReceived')}
+                    className="rounded border-gray-300 text-blue-600"
+                  />
+                  <span className="text-sm text-gray-700">請求書受領</span>
+                </label>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    {...register('outsourcingPaymentMade')}
+                    className="rounded border-gray-300 text-green-600"
+                  />
+                  <span className="text-sm text-gray-700">振込済</span>
+                </label>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-700">振込予定日:</span>
+                  <DatePicker
+                    selected={watch('outsourcingPaymentDate')}
+                    onChange={(date) => setValue('outsourcingPaymentDate', date)}
+                    placeholderText="振込予定日を選択"
+                  />
+                </div>
+              </div>
+            </div>
+            </>
           )}
 
           <div>
@@ -427,6 +644,128 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
               placeholder="https://..."
             />
           </div>
+
+          {/* クライアント向け見積り（リスト表示） */}
+          {project && (
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-medium text-blue-800">📄 クライアント向け見積り</h4>
+                <button
+                  type="button"
+                  onClick={() => openEstimateForm('CLIENT')}
+                  className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+                >
+                  <Plus size={14} />
+                  追加
+                </button>
+              </div>
+              <div className="space-y-2">
+                {estimates.filter(e => e.type === 'CLIENT').length === 0 ? (
+                  <p className="text-sm text-gray-500">見積りがありません</p>
+                ) : (
+                  estimates.filter(e => e.type === 'CLIENT').map(estimate => (
+                    <div key={estimate.id} className="flex items-center justify-between bg-white p-2 rounded border border-blue-100">
+                      <div className="flex items-center gap-2 text-sm">
+                        {estimate.pdfName ? (
+                          <a href={estimate.pdfPath || '#'} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-600 hover:underline">
+                            <FileText size={14} />
+                            {estimate.pdfName}
+                          </a>
+                        ) : estimate.url ? (
+                          <a href={estimate.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-600 hover:underline">
+                            <ExternalLink size={14} />
+                            {estimate.description || 'リンク'}
+                          </a>
+                        ) : null}
+                        {estimate.description && !estimate.url && !estimate.pdfName && (
+                          <span className="text-gray-600">{estimate.description}</span>
+                        )}
+                        {estimate.description && (estimate.url || estimate.pdfName) && (
+                          <span className="text-gray-500 text-xs">({estimate.description})</span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteEstimate(estimate.id)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 見積り追加フォーム（モーダル内モーダル） */}
+          {showEstimateForm && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 w-full max-w-md">
+                <h3 className="text-lg font-medium mb-4">
+                  {estimateFormType === 'CLIENT' ? 'クライアント向け見積りを追加' : '外注パートナーからの見積りを追加'}
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      説明（任意）
+                    </label>
+                    <Input
+                      value={newEstimate.description}
+                      onChange={(e) => setNewEstimate(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="例：初回見積り、追加見積り"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      URL（Googleドライブ等）
+                    </label>
+                    <Input
+                      value={newEstimate.url}
+                      onChange={(e) => setNewEstimate(prev => ({ ...prev, url: e.target.value }))}
+                      placeholder="https://..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      またはPDFをアップロード
+                    </label>
+                    <input
+                      type="file"
+                      accept=".pdf"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleEstimatePdfUpload(file);
+                      }}
+                      className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+                      disabled={uploadingPdf}
+                    />
+                    {uploadingPdf && <span className="text-sm text-gray-500 ml-2">アップロード中...</span>}
+                    {newEstimate.pdfName && (
+                      <div className="mt-2 text-sm text-green-600">
+                        📎 {newEstimate.pdfName}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 mt-6">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setShowEstimateForm(false)}
+                  >
+                    キャンセル
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleAddEstimate}
+                  >
+                    追加
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 請求・支払い */}
