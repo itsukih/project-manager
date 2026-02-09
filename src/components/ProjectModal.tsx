@@ -16,7 +16,7 @@ import { addMonths, endOfMonth } from 'date-fns';
 import { ProjectPhases } from '@/components/ProjectPhases';
 import { QuickAddClientModal } from '@/components/QuickAddClientModal';
 import { QuickAddPartnerModal } from '@/components/QuickAddPartnerModal';
-import { Plus, Trash2, ExternalLink, FileText } from 'lucide-react';
+import { Plus, Trash2, ExternalLink, FileText, Pencil } from 'lucide-react';
 
 const projectSchema = z.object({
   name: z.string().min(1, '案件名は必須です'),
@@ -76,6 +76,7 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
     description: '',
     url: '',
   });
+  const [editingEstimateId, setEditingEstimateId] = useState<number | null>(null);
   const [uploadingPdf, setUploadingPdf] = useState(false);
 
   const {
@@ -254,10 +255,52 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
     }
   };
 
-  // 見積りフォームを開く
+  // 見積り更新
+  const handleUpdateEstimate = async () => {
+    if (!project || editingEstimateId === null) return;
+    if (!newEstimate.url && !newEstimate.pdfPath) {
+      alert('URLまたはPDFを指定してください');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/projects/${project.id}/estimates/${editingEstimateId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newEstimate),
+      });
+
+      if (!response.ok) throw new Error('見積りの更新に失敗しました');
+
+      const updatedEstimate = await response.json();
+      setEstimates(prev => prev.map(e => e.id === editingEstimateId ? updatedEstimate : e));
+      setNewEstimate({ type: estimateFormType, description: '', url: '' });
+      setEditingEstimateId(null);
+      setShowEstimateForm(false);
+    } catch (error) {
+      alert('見積りの更新に失敗しました');
+    }
+  };
+
+  // 見積りフォームを開く（新規追加）
   const openEstimateForm = (type: 'CLIENT' | 'OUTSOURCING') => {
     setEstimateFormType(type);
     setNewEstimate({ type, description: '', url: '' });
+    setEditingEstimateId(null);
+    setShowEstimateForm(true);
+  };
+
+  // 見積り編集フォームを開く
+  const openEstimateEditForm = (estimate: ProjectEstimate) => {
+    setEstimateFormType(estimate.type as 'CLIENT' | 'OUTSOURCING');
+    setNewEstimate({
+      type: estimate.type as 'CLIENT' | 'OUTSOURCING',
+      description: estimate.description || '',
+      url: estimate.url || '',
+      pdfPath: estimate.pdfPath || undefined,
+      pdfName: estimate.pdfName || undefined,
+    });
+    setEditingEstimateId(estimate.id);
     setShowEstimateForm(true);
   };
 
@@ -588,13 +631,24 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
                             <span className="text-gray-500 text-xs">({estimate.description})</span>
                           )}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteEstimate(estimate.id)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => openEstimateEditForm(estimate)}
+                            className="text-gray-400 hover:text-orange-600"
+                            title="編集"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteEstimate(estimate.id)}
+                            className="text-red-500 hover:text-red-700"
+                            title="削除"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
                     ))
                   )}
@@ -684,13 +738,24 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
                           <span className="text-gray-500 text-xs">({estimate.description})</span>
                         )}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteEstimate(estimate.id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => openEstimateEditForm(estimate)}
+                          className="text-gray-400 hover:text-blue-600"
+                          title="編集"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteEstimate(estimate.id)}
+                          className="text-red-500 hover:text-red-700"
+                          title="削除"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </div>
                   ))
                 )}
@@ -703,7 +768,10 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <div className="bg-white rounded-lg p-6 w-full max-w-md">
                 <h3 className="text-lg font-medium mb-4">
-                  {estimateFormType === 'CLIENT' ? 'クライアント向け見積りを追加' : '外注パートナーからの見積りを追加'}
+                  {editingEstimateId
+                    ? (estimateFormType === 'CLIENT' ? 'クライアント向け見積りを編集' : '外注パートナーからの見積りを編集')
+                    : (estimateFormType === 'CLIENT' ? 'クライアント向け見積りを追加' : '外注パートナーからの見積りを追加')
+                  }
                 </h3>
                 <div className="space-y-4">
                   <div>
@@ -752,15 +820,18 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
                   <Button
                     type="button"
                     variant="secondary"
-                    onClick={() => setShowEstimateForm(false)}
+                    onClick={() => {
+                      setShowEstimateForm(false);
+                      setEditingEstimateId(null);
+                    }}
                   >
                     キャンセル
                   </Button>
                   <Button
                     type="button"
-                    onClick={handleAddEstimate}
+                    onClick={editingEstimateId ? handleUpdateEstimate : handleAddEstimate}
                   >
-                    追加
+                    {editingEstimateId ? '更新' : '追加'}
                   </Button>
                 </div>
               </div>
