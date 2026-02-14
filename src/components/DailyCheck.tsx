@@ -135,6 +135,34 @@ export function DailyCheck() {
   const { projects, checks, upcomingTasks, loading, toggleCheck, refresh } = useDailyChecks(dateStr);
 
   const [editingProject, setEditingProject] = useState<ProjectWithRelations | null>(null);
+  const [completedTaskIds, setCompletedTaskIds] = useState<Set<number>>(new Set());
+
+  const toggleTaskComplete = async (taskId: number, currentCompleted: boolean) => {
+    const newCompleted = !currentCompleted;
+    // 楽観的UI
+    setCompletedTaskIds(prev => {
+      const next = new Set(prev);
+      if (newCompleted) next.add(taskId);
+      else next.delete(taskId);
+      return next;
+    });
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completed: newCompleted }),
+      });
+      if (!response.ok) throw new Error();
+    } catch {
+      // ロールバック
+      setCompletedTaskIds(prev => {
+        const next = new Set(prev);
+        if (newCompleted) next.delete(taskId);
+        else next.add(taskId);
+        return next;
+      });
+    }
+  };
 
   const totalCount = projects.length;
   const checkedCount = checks.size;
@@ -209,6 +237,108 @@ export function DailyCheck() {
           />
         </div>
       </div>
+
+      {/* 期限間近のタスク（緊急: 3日以内 / 超過） */}
+      {(() => {
+        const urgentTasks = upcomingTasks.filter(t => {
+          const d = t.dueDate ? differenceInDays(new Date(t.dueDate), new Date()) : null;
+          return d !== null && d <= 3;
+        });
+        const normalTasks = upcomingTasks.filter(t => {
+          const d = t.dueDate ? differenceInDays(new Date(t.dueDate), new Date()) : null;
+          return d !== null && d > 3;
+        });
+
+        const renderTaskRow = (task: typeof upcomingTasks[0]) => {
+          const daysLeft = task.dueDate ? differenceInDays(new Date(task.dueDate), new Date()) : null;
+          const isCompleted = task.completed || completedTaskIds.has(task.id);
+          return (
+            <div
+              key={task.id}
+              className={`flex items-center justify-between px-4 py-3 hover:bg-gray-50 ${isCompleted ? 'opacity-50' : ''}`}
+            >
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => toggleTaskComplete(task.id, isCompleted)}
+                  className="focus:outline-none flex-shrink-0"
+                >
+                  {isCompleted ? (
+                    <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  ) : (
+                    <Circle className="h-5 w-5 text-gray-300 hover:text-gray-400" />
+                  )}
+                </button>
+                <span className="text-xs font-medium">
+                  {TASK_PRIORITY_LABELS[task.priority as keyof typeof TASK_PRIORITY_LABELS] || task.priority}
+                </span>
+                <span className={`text-sm ${isCompleted ? 'line-through text-gray-400' : 'text-gray-900'}`}>
+                  {task.title}
+                </span>
+                {task.project && (
+                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                    {task.project.name}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {daysLeft !== null && daysLeft < 0 && (
+                  <span className="text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded">
+                    {Math.abs(daysLeft)}日超過
+                  </span>
+                )}
+                {daysLeft !== null && daysLeft === 0 && (
+                  <span className="text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded">
+                    今日
+                  </span>
+                )}
+                {daysLeft !== null && daysLeft > 0 && daysLeft <= 3 && (
+                  <span className="text-xs font-medium text-orange-600 bg-orange-50 px-2 py-0.5 rounded">
+                    あと{daysLeft}日
+                  </span>
+                )}
+                <span className="text-sm text-gray-500">
+                  {task.dueDate
+                    ? format(new Date(task.dueDate), 'M/d（E）', { locale: ja })
+                    : '-'}
+                </span>
+              </div>
+            </div>
+          );
+        };
+
+        return (
+          <>
+            {urgentTasks.length > 0 && (
+              <div className="rounded-lg border border-red-300 overflow-hidden">
+                <div className="bg-red-50 px-4 py-3 border-b border-red-300">
+                  <h3 className="text-sm font-semibold text-red-800 flex items-center">
+                    <AlertTriangle className="h-4 w-4 mr-2" />
+                    緊急タスク（3日以内・超過）
+                    <span className="ml-2 text-xs font-normal">（{urgentTasks.length}件）</span>
+                  </h3>
+                </div>
+                <div className="divide-y divide-red-100 bg-white">
+                  {urgentTasks.map(renderTaskRow)}
+                </div>
+              </div>
+            )}
+            {normalTasks.length > 0 && (
+              <div className="rounded-lg border border-orange-200 overflow-hidden">
+                <div className="bg-orange-50 px-4 py-3 border-b border-orange-200">
+                  <h3 className="text-sm font-semibold text-orange-800 flex items-center">
+                    <Clock className="h-4 w-4 mr-2" />
+                    期限間近のタスク（4〜7日以内）
+                    <span className="ml-2 text-xs font-normal">（{normalTasks.length}件）</span>
+                  </h3>
+                </div>
+                <div className="divide-y divide-gray-100 bg-white">
+                  {normalTasks.map(renderTaskRow)}
+                </div>
+              </div>
+            )}
+          </>
+        );
+      })()}
 
       {/* ステータス別 案件グループ */}
       {groupedProjects.map(group => (
@@ -327,66 +457,6 @@ export function DailyCheck() {
       {projects.length === 0 && (
         <div className="bg-white rounded-lg border border-gray-200 p-8 text-center text-gray-500">
           対象の案件がありません
-        </div>
-      )}
-
-      {/* 期限間近のタスク */}
-      {upcomingTasks.length > 0 && (
-        <div className="bg-white rounded-lg border border-orange-200 overflow-hidden">
-          <div className="bg-orange-50 px-4 py-3 border-b border-orange-200">
-            <h3 className="text-sm font-semibold text-orange-800 flex items-center">
-              <AlertTriangle className="h-4 w-4 mr-2" />
-              期限間近のタスク（7日以内）
-              <span className="ml-2 text-xs font-normal">（{upcomingTasks.length}件）</span>
-            </h3>
-          </div>
-          <div className="divide-y divide-gray-100">
-            {upcomingTasks.map(task => {
-              const daysLeft = task.dueDate
-                ? differenceInDays(new Date(task.dueDate), new Date())
-                : null;
-              return (
-                <div
-                  key={task.id}
-                  className="flex items-center justify-between px-4 py-3 hover:bg-gray-50"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-medium">
-                      {TASK_PRIORITY_LABELS[task.priority as keyof typeof TASK_PRIORITY_LABELS] || task.priority}
-                    </span>
-                    <span className="text-sm text-gray-900">{task.title}</span>
-                    {task.project && (
-                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                        {task.project.name}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {daysLeft !== null && daysLeft < 0 && (
-                      <span className="text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded">
-                        {Math.abs(daysLeft)}日超過
-                      </span>
-                    )}
-                    {daysLeft !== null && daysLeft === 0 && (
-                      <span className="text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded">
-                        今日
-                      </span>
-                    )}
-                    {daysLeft !== null && daysLeft > 0 && daysLeft <= 3 && (
-                      <span className="text-xs font-medium text-orange-600 bg-orange-50 px-2 py-0.5 rounded">
-                        あと{daysLeft}日
-                      </span>
-                    )}
-                    <span className="text-sm text-gray-500">
-                      {task.dueDate
-                        ? format(new Date(task.dueDate), 'M/d（E）', { locale: ja })
-                        : '-'}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         </div>
       )}
 

@@ -78,6 +78,48 @@ export async function PUT(
 }
 
 
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const resolvedParams = await params;
+    const id = parseInt(resolvedParams.id);
+    const data = await request.json();
+
+    if (isNaN(id)) {
+      return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
+    }
+
+    const updateData: any = {};
+
+    if (data.completed !== undefined) {
+      updateData.completed = data.completed;
+      updateData.completedAt = data.completed ? new Date() : null;
+    }
+
+    const task = await prisma.task.update({
+      where: { id },
+      data: updateData,
+      include: {
+        project: {
+          include: {
+            client: true,
+          },
+        },
+        subTasks: {
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+
+    return NextResponse.json(task);
+  } catch (error) {
+    console.error('Failed to patch task:', error);
+    return NextResponse.json({ error: 'Failed to update task' }, { status: 500 });
+  }
+}
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
