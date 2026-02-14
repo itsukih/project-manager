@@ -25,6 +25,9 @@ export async function GET(request: NextRequest) {
         estimates: {
           orderBy: { createdAt: 'desc' },
         },
+        invoices: {
+          orderBy: { createdAt: 'desc' },
+        },
       },
       orderBy: [
         { salesStatus: 'asc' },

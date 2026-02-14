@@ -103,6 +103,9 @@ model Project {
   // 見積り（複数対応）
   estimates                 ProjectEstimate[]
 
+  // 請求書（複数対応）
+  invoices                  ProjectInvoice[]
+
   // 請求・支払い関連
   amount                    Int       @default(0)
   outsourcingCost           Int       @default(0)
@@ -318,6 +321,38 @@ model ProjectEstimate {
 enum EstimateType {
   CLIENT        // クライアント向け
   OUTSOURCING   // 外注パートナーから
+}
+
+// 請求書管理（複数対応）
+model ProjectInvoice {
+  id          Int            @id @default(autoincrement())
+  projectId   Int
+  project     Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  type        InvoiceType    // CLIENT（クライアント向け）or OUTSOURCING（パートナーから）
+  description String?        // 請求書の説明
+  amount      Int            @default(0)   // 金額
+  issueDate   DateTime?      // 発行日/受領日
+  url         String?        // 請求書URL
+  pdfPath     String?        // PDFファイルパス
+  pdfName     String?        // PDFファイル名
+  status      InvoiceStatus  @default(DRAFT) // ステータス
+
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@map("project_invoices")
+}
+
+enum InvoiceType {
+  CLIENT        // クライアント向け
+  OUTSOURCING   // 外注パートナーから
+}
+
+enum InvoiceStatus {
+  DRAFT         // 下書き
+  ISSUED        // 発行済/受領済
+  PAID          // 入金済/支払済
 }
 
 // デイリーチェック

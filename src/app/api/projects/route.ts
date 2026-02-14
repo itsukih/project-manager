@@ -65,6 +65,11 @@ export async function GET(request: NextRequest) {
             createdAt: 'desc',
           },
         },
+        invoices: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
       },
       orderBy,
     });
@@ -155,6 +160,11 @@ export async function POST(request: NextRequest) {
           },
         },
         estimates: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
+        invoices: {
           orderBy: {
             createdAt: 'desc',
           },

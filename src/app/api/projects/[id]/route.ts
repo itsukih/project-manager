@@ -28,6 +28,11 @@ export async function GET(
             createdAt: 'desc',
           },
         },
+        invoices: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
       },
     });
 
@@ -147,6 +152,11 @@ export async function PUT(
           },
         },
         estimates: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
+        invoices: {
           orderBy: {
             createdAt: 'desc',
           },

@@ -11,12 +11,12 @@ import { Select } from '@/components/ui/Select';
 import { DatePicker } from '@/components/ui/DatePicker';
 import { useClients } from '@/hooks/useClients';
 import { useOutsourcingPartners } from '@/hooks/useOutsourcingPartners';
-import { ProjectWithRelations, SalesStatus, ProgressStatus, EstimateType, ProjectEstimate } from '@/types';
-import { addMonths, endOfMonth } from 'date-fns';
+import { ProjectWithRelations, SalesStatus, ProgressStatus, EstimateType, ProjectEstimate, ProjectInvoice, INVOICE_STATUS_LABELS, INVOICE_STATUS_LABELS_OUTSOURCING } from '@/types';
+import { addMonths, endOfMonth, format } from 'date-fns';
 import { ProjectPhases } from '@/components/ProjectPhases';
 import { QuickAddClientModal } from '@/components/QuickAddClientModal';
 import { QuickAddPartnerModal } from '@/components/QuickAddPartnerModal';
-import { Plus, Trash2, ExternalLink, FileText, Pencil } from 'lucide-react';
+import { Plus, Trash2, ExternalLink, FileText, Pencil, Receipt } from 'lucide-react';
 
 const projectSchema = z.object({
   name: z.string().min(1, '案件名は必須です'),
@@ -60,6 +60,18 @@ interface EstimateInput {
   pdfName?: string;
 }
 
+// 請求書入力用の型
+interface InvoiceInput {
+  type: 'CLIENT' | 'OUTSOURCING';
+  description: string;
+  amount: number;
+  issueDate: string;
+  url: string;
+  pdfPath?: string;
+  pdfName?: string;
+  status: 'DRAFT' | 'ISSUED' | 'PAID';
+}
+
 export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
   const [loading, setLoading] = useState(false);
   const { clients, refresh: refreshClients } = useClients();
@@ -78,6 +90,21 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
   });
   const [editingEstimateId, setEditingEstimateId] = useState<number | null>(null);
   const [uploadingPdf, setUploadingPdf] = useState(false);
+
+  // 請求書管理
+  const [invoices, setInvoices] = useState<ProjectInvoice[]>([]);
+  const [showInvoiceForm, setShowInvoiceForm] = useState(false);
+  const [invoiceFormType, setInvoiceFormType] = useState<'CLIENT' | 'OUTSOURCING'>('CLIENT');
+  const [newInvoice, setNewInvoice] = useState<InvoiceInput>({
+    type: 'CLIENT',
+    description: '',
+    amount: 0,
+    issueDate: '',
+    url: '',
+    status: 'DRAFT',
+  });
+  const [editingInvoiceId, setEditingInvoiceId] = useState<number | null>(null);
+  const [uploadingInvoicePdf, setUploadingInvoicePdf] = useState(false);
 
   const {
     register,
@@ -142,6 +169,8 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
       });
       // 見積りをセット
       setEstimates(project.estimates || []);
+      // 請求書をセット
+      setInvoices(project.invoices || []);
     } else {
       reset({
         salesStatus: SalesStatus.CONSULTING,
@@ -155,8 +184,9 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
         invoiceIssued: false,
         paymentConfirmed: false,
       });
-      // 新規作成時は見積りをリセット
+      // 新規作成時は見積り・請求書をリセット
       setEstimates([]);
+      setInvoices([]);
     }
   }, [project, reset, clients]);
 
@@ -302,6 +332,120 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
     });
     setEditingEstimateId(estimate.id);
     setShowEstimateForm(true);
+  };
+
+  // === 請求書管理 ===
+
+  // 請求書PDFアップロード処理
+  const handleInvoicePdfUpload = async (file: File) => {
+    setUploadingInvoicePdf(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', newInvoice.type.toLowerCase());
+
+      const response = await fetch('/api/projects/upload-invoice', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error('アップロードに失敗しました');
+
+      const { pdfPath, pdfName } = await response.json();
+      setNewInvoice(prev => ({ ...prev, pdfPath, pdfName }));
+    } catch {
+      alert('PDFのアップロードに失敗しました');
+    } finally {
+      setUploadingInvoicePdf(false);
+    }
+  };
+
+  // 請求書追加
+  const handleAddInvoice = async () => {
+    if (!project) return;
+
+    try {
+      const response = await fetch(`/api/projects/${project.id}/invoices`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newInvoice),
+      });
+
+      if (!response.ok) throw new Error('請求書の追加に失敗しました');
+
+      const addedInvoice = await response.json();
+      setInvoices(prev => [addedInvoice, ...prev]);
+      setNewInvoice({ type: invoiceFormType, description: '', amount: 0, issueDate: '', url: '', status: 'DRAFT' });
+      setShowInvoiceForm(false);
+    } catch {
+      alert('請求書の追加に失敗しました');
+    }
+  };
+
+  // 請求書削除
+  const handleDeleteInvoice = async (invoiceId: number) => {
+    if (!project) return;
+    if (!confirm('この請求書を削除しますか？')) return;
+
+    try {
+      const response = await fetch(`/api/projects/${project.id}/invoices/${invoiceId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) throw new Error('請求書の削除に失敗しました');
+
+      setInvoices(prev => prev.filter(i => i.id !== invoiceId));
+    } catch {
+      alert('請求書の削除に失敗しました');
+    }
+  };
+
+  // 請求書更新
+  const handleUpdateInvoice = async () => {
+    if (!project || editingInvoiceId === null) return;
+
+    try {
+      const response = await fetch(`/api/projects/${project.id}/invoices/${editingInvoiceId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newInvoice),
+      });
+
+      if (!response.ok) throw new Error('請求書の更新に失敗しました');
+
+      const updatedInvoice = await response.json();
+      setInvoices(prev => prev.map(i => i.id === editingInvoiceId ? updatedInvoice : i));
+      setNewInvoice({ type: invoiceFormType, description: '', amount: 0, issueDate: '', url: '', status: 'DRAFT' });
+      setEditingInvoiceId(null);
+      setShowInvoiceForm(false);
+    } catch {
+      alert('請求書の更新に失敗しました');
+    }
+  };
+
+  // 請求書フォームを開く（新規追加）
+  const openInvoiceForm = (type: 'CLIENT' | 'OUTSOURCING') => {
+    setInvoiceFormType(type);
+    setNewInvoice({ type, description: '', amount: 0, issueDate: '', url: '', status: 'DRAFT' });
+    setEditingInvoiceId(null);
+    setShowInvoiceForm(true);
+  };
+
+  // 請求書編集フォームを開く
+  const openInvoiceEditForm = (invoice: ProjectInvoice) => {
+    setInvoiceFormType(invoice.type as 'CLIENT' | 'OUTSOURCING');
+    setNewInvoice({
+      type: invoice.type as 'CLIENT' | 'OUTSOURCING',
+      description: invoice.description || '',
+      amount: invoice.amount || 0,
+      issueDate: invoice.issueDate ? format(new Date(invoice.issueDate), 'yyyy-MM-dd') : '',
+      url: invoice.url || '',
+      pdfPath: invoice.pdfPath || undefined,
+      pdfName: invoice.pdfName || undefined,
+      status: invoice.status as 'DRAFT' | 'ISSUED' | 'PAID',
+    });
+    setEditingInvoiceId(invoice.id);
+    setShowInvoiceForm(true);
   };
 
   const onSubmit = async (data: ProjectForm) => {
@@ -832,6 +976,250 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
                     onClick={editingEstimateId ? handleUpdateEstimate : handleAddEstimate}
                   >
                     {editingEstimateId ? '更新' : '追加'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 請求書管理 */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+            <Receipt className="h-5 w-5 text-gray-500" />
+            請求書管理
+          </h3>
+
+          {/* クライアント向け請求書 */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium text-gray-700">クライアント向け請求書</h4>
+              {project && (
+                <button
+                  type="button"
+                  onClick={() => openInvoiceForm('CLIENT')}
+                  className="inline-flex items-center gap-1 text-xs text-orange-600 hover:text-orange-700"
+                >
+                  <Plus className="h-3.5 w-3.5" /> 追加
+                </button>
+              )}
+            </div>
+            {invoices.filter(i => i.type === 'CLIENT').length > 0 ? (
+              <div className="space-y-2">
+                {invoices.filter(i => i.type === 'CLIENT').map(invoice => (
+                  <div key={invoice.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md border border-gray-200">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <FileText className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-gray-900 truncate">
+                          {invoice.description || 'クライアント向け請求書'}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          {invoice.amount > 0 && <span>{invoice.amount.toLocaleString()}円</span>}
+                          {invoice.issueDate && <span>{format(new Date(invoice.issueDate), 'yyyy/MM/dd')}</span>}
+                          <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                            invoice.status === 'PAID' ? 'bg-green-100 text-green-700' :
+                            invoice.status === 'ISSUED' ? 'bg-blue-100 text-blue-700' :
+                            'bg-gray-100 text-gray-600'
+                          }`}>
+                            {INVOICE_STATUS_LABELS[invoice.status as keyof typeof INVOICE_STATUS_LABELS] || invoice.status}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                      {invoice.url && (
+                        <a href={invoice.url} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-blue-600 p-1">
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                      {invoice.pdfPath && (
+                        <a href={invoice.pdfPath} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-blue-600 p-1" title={invoice.pdfName || 'PDF'}>
+                          <FileText className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                      <button type="button" onClick={() => openInvoiceEditForm(invoice)} className="text-gray-400 hover:text-orange-600 p-1">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button type="button" onClick={() => handleDeleteInvoice(invoice.id)} className="text-gray-400 hover:text-red-600 p-1">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400">{project ? '請求書はまだ登録されていません' : '案件作成後に登録できます'}</p>
+            )}
+          </div>
+
+          {/* パートナーからの請求書 */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium text-gray-700">パートナーからの請求書</h4>
+              {project && (
+                <button
+                  type="button"
+                  onClick={() => openInvoiceForm('OUTSOURCING')}
+                  className="inline-flex items-center gap-1 text-xs text-orange-600 hover:text-orange-700"
+                >
+                  <Plus className="h-3.5 w-3.5" /> 追加
+                </button>
+              )}
+            </div>
+            {invoices.filter(i => i.type === 'OUTSOURCING').length > 0 ? (
+              <div className="space-y-2">
+                {invoices.filter(i => i.type === 'OUTSOURCING').map(invoice => (
+                  <div key={invoice.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md border border-gray-200">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <FileText className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-gray-900 truncate">
+                          {invoice.description || 'パートナーからの請求書'}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          {invoice.amount > 0 && <span>{invoice.amount.toLocaleString()}円</span>}
+                          {invoice.issueDate && <span>{format(new Date(invoice.issueDate), 'yyyy/MM/dd')}</span>}
+                          <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                            invoice.status === 'PAID' ? 'bg-green-100 text-green-700' :
+                            invoice.status === 'ISSUED' ? 'bg-blue-100 text-blue-700' :
+                            'bg-gray-100 text-gray-600'
+                          }`}>
+                            {INVOICE_STATUS_LABELS_OUTSOURCING[invoice.status as keyof typeof INVOICE_STATUS_LABELS_OUTSOURCING] || invoice.status}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                      {invoice.url && (
+                        <a href={invoice.url} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-blue-600 p-1">
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                      {invoice.pdfPath && (
+                        <a href={invoice.pdfPath} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-blue-600 p-1" title={invoice.pdfName || 'PDF'}>
+                          <FileText className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                      <button type="button" onClick={() => openInvoiceEditForm(invoice)} className="text-gray-400 hover:text-orange-600 p-1">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button type="button" onClick={() => handleDeleteInvoice(invoice.id)} className="text-gray-400 hover:text-red-600 p-1">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400">{project ? '請求書はまだ登録されていません' : '案件作成後に登録できます'}</p>
+            )}
+          </div>
+
+          {/* 請求書入力フォーム（モーダル内モーダル） */}
+          {showInvoiceForm && (
+            <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-[60]">
+              <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl space-y-4">
+                <h4 className="text-base font-semibold text-gray-900">
+                  {editingInvoiceId ? '請求書を編集' : '請求書を追加'}
+                  <span className="ml-2 text-sm font-normal text-gray-500">
+                    （{invoiceFormType === 'CLIENT' ? 'クライアント向け' : 'パートナーから'}）
+                  </span>
+                </h4>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">説明</label>
+                  <Input
+                    value={newInvoice.description}
+                    onChange={(e) => setNewInvoice(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="例：初回請求書、追加請求"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">金額（円）</label>
+                    <Input
+                      type="number"
+                      value={newInvoice.amount || ''}
+                      onChange={(e) => setNewInvoice(prev => ({ ...prev, amount: parseInt(e.target.value) || 0 }))}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {invoiceFormType === 'CLIENT' ? '発行日' : '受領日'}
+                    </label>
+                    <Input
+                      type="date"
+                      value={newInvoice.issueDate}
+                      onChange={(e) => setNewInvoice(prev => ({ ...prev, issueDate: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">ステータス</label>
+                  <select
+                    value={newInvoice.status}
+                    onChange={(e) => setNewInvoice(prev => ({ ...prev, status: e.target.value as 'DRAFT' | 'ISSUED' | 'PAID' }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  >
+                    {invoiceFormType === 'CLIENT' ? (
+                      <>
+                        <option value="DRAFT">下書き</option>
+                        <option value="ISSUED">発行済</option>
+                        <option value="PAID">入金済</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="DRAFT">未受領</option>
+                        <option value="ISSUED">受領済</option>
+                        <option value="PAID">支払済</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">URL</label>
+                  <Input
+                    value={newInvoice.url}
+                    onChange={(e) => setNewInvoice(prev => ({ ...prev, url: e.target.value }))}
+                    placeholder="https://..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">PDFファイル</label>
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleInvoicePdfUpload(file);
+                    }}
+                    className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+                    disabled={uploadingInvoicePdf}
+                  />
+                  {uploadingInvoicePdf && <span className="text-sm text-gray-500 ml-2">アップロード中...</span>}
+                  {newInvoice.pdfName && (
+                    <div className="mt-2 text-sm text-green-600">
+                      {newInvoice.pdfName}
+                    </div>
+                  )}
+                </div>
+                <div className="flex justify-end gap-2 mt-6">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      setShowInvoiceForm(false);
+                      setEditingInvoiceId(null);
+                    }}
+                  >
+                    キャンセル
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={editingInvoiceId ? handleUpdateInvoice : handleAddInvoice}
+                  >
+                    {editingInvoiceId ? '更新' : '追加'}
                   </Button>
                 </div>
               </div>

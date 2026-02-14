@@ -1,5 +1,5 @@
-import type { Project, Client, OutsourcingPartner, Task, ProjectPhase, ProjectEstimate } from '@prisma/client';
-import { SalesStatus, ProgressStatus, PartnerType, TaskCategory, TaskPriority, TaskStatus, EstimateType } from '@prisma/client';
+import type { Project, Client, OutsourcingPartner, Task, ProjectPhase, ProjectEstimate, ProjectInvoice } from '@prisma/client';
+import { SalesStatus, ProgressStatus, PartnerType, TaskCategory, TaskPriority, TaskStatus, EstimateType, InvoiceType, InvoiceStatus } from '@prisma/client';
 
 export type ProjectWithRelations = Project & {
   client: Client;
@@ -12,6 +12,7 @@ export type ProjectWithRelations = Project & {
   }[];
   phases?: ProjectPhase[];
   estimates?: ProjectEstimate[];
+  invoices?: ProjectInvoice[];
   // 外注支払い管理
   outsourcingInvoiceReceived?: boolean;
   outsourcingPaymentMade?: boolean;
@@ -24,8 +25,8 @@ export type TaskWithRelations = Task & {
   subTasks?: Task[];
 };
 
-export type { Client, OutsourcingPartner, Task, ProjectEstimate };
-export { SalesStatus, ProgressStatus, PartnerType, TaskCategory, TaskPriority, TaskStatus, EstimateType };
+export type { Client, OutsourcingPartner, Task, ProjectEstimate, ProjectInvoice };
+export { SalesStatus, ProgressStatus, PartnerType, TaskCategory, TaskPriority, TaskStatus, EstimateType, InvoiceType, InvoiceStatus };
 
 export const SALES_STATUS_LABELS = {
   CONSULTING: '相談中',
@@ -130,4 +131,16 @@ export const TASK_PRIORITY_LABELS = {
 export const TASK_STATUS_LABELS = {
   PENDING: '未対応',
   IN_PROGRESS: '対応中',
+} as const;
+
+export const INVOICE_STATUS_LABELS = {
+  DRAFT: '下書き',
+  ISSUED: '発行済',
+  PAID: '入金済',
+} as const;
+
+export const INVOICE_STATUS_LABELS_OUTSOURCING = {
+  DRAFT: '未受領',
+  ISSUED: '受領済',
+  PAID: '支払済',
 } as const;
