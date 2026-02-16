@@ -800,36 +800,6 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
               </div>
             )}
 
-            {/* 外注支払い管理 */}
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-              <h4 className="text-sm font-medium text-gray-700 mb-3">外注支払い管理</h4>
-              <div className="flex flex-wrap gap-4 items-center">
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    {...register('outsourcingInvoiceReceived')}
-                    className="rounded border-gray-300 text-blue-600"
-                  />
-                  <span className="text-sm text-gray-700">請求書受領</span>
-                </label>
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    {...register('outsourcingPaymentMade')}
-                    className="rounded border-gray-300 text-green-600"
-                  />
-                  <span className="text-sm text-gray-700">振込済</span>
-                </label>
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-700">振込予定日:</span>
-                  <DatePicker
-                    selected={watch('outsourcingPaymentDate')}
-                    onChange={(date) => setValue('outsourcingPaymentDate', date)}
-                    placeholderText="振込予定日を選択"
-                  />
-                </div>
-              </div>
-            </div>
             </>
           )}
 
@@ -983,22 +953,60 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
           )}
         </div>
 
-        {/* 請求書管理 */}
+        {/* 請求・支払い（統合セクション） */}
         <div className="space-y-4">
           <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
             <Receipt className="h-5 w-5 text-gray-500" />
-            請求書管理
+            請求・支払い
           </h3>
 
-          {/* クライアント向け請求書 */}
-          <div className="space-y-2">
+          {/* 金額サマリー */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                売上金額（円）
+              </label>
+              <Input
+                type="number"
+                {...register('amount', { valueAsNumber: true })}
+                placeholder="0"
+              />
+              {errors.amount && (
+                <p className="text-sm text-red-600 mt-1">{errors.amount.message}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                外注費（円）
+              </label>
+              <Input
+                type="number"
+                {...register('outsourcingCost', { valueAsNumber: true })}
+                placeholder="0"
+              />
+              {errors.outsourcingCost && (
+                <p className="text-sm text-red-600 mt-1">{errors.outsourcingCost.message}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                利益額（円）
+              </label>
+              <div className="px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm font-medium">
+                {((watch('amount') || 0) - (watch('outsourcingCost') || 0)).toLocaleString()}
+              </div>
+            </div>
+          </div>
+
+          {/* クライアント向け */}
+          <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-3">
             <div className="flex items-center justify-between">
-              <h4 className="text-sm font-medium text-gray-700">クライアント向け請求書</h4>
+              <h4 className="text-sm font-medium text-blue-800">クライアント向け請求書</h4>
               {project && (
                 <button
                   type="button"
                   onClick={() => openInvoiceForm('CLIENT')}
-                  className="inline-flex items-center gap-1 text-xs text-orange-600 hover:text-orange-700"
+                  className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
                 >
                   <Plus className="h-3.5 w-3.5" /> 追加
                 </button>
@@ -1007,12 +1015,12 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
             {invoices.filter(i => i.type === 'CLIENT').length > 0 ? (
               <div className="space-y-2">
                 {invoices.filter(i => i.type === 'CLIENT').map(invoice => (
-                  <div key={invoice.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md border border-gray-200">
+                  <div key={invoice.id} className="flex items-center justify-between p-2.5 bg-white rounded-md border border-blue-100">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <FileText className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                      <FileText className="h-4 w-4 text-blue-400 flex-shrink-0" />
                       <div className="min-w-0">
                         <div className="text-sm font-medium text-gray-900 truncate">
-                          {invoice.description || 'クライアント向け請求書'}
+                          {invoice.description || '請求書'}
                         </div>
                         <div className="flex items-center gap-2 text-xs text-gray-500">
                           {invoice.amount > 0 && <span>{invoice.amount.toLocaleString()}円</span>}
@@ -1051,17 +1059,43 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
             ) : (
               <p className="text-xs text-gray-400">{project ? '請求書はまだ登録されていません' : '案件作成後に登録できます'}</p>
             )}
+            <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-blue-200">
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  {...register('invoiceIssued')}
+                  className="rounded border-gray-300 text-blue-600"
+                />
+                <span className="text-sm text-gray-700">請求書発行済</span>
+              </label>
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  {...register('paymentConfirmed')}
+                  className="rounded border-gray-300 text-green-600"
+                />
+                <span className="text-sm text-gray-700">入金確認済</span>
+              </label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-700">支払い期限:</span>
+                <DatePicker
+                  selected={watch('paymentDueDate')}
+                  onChange={(date) => setValue('paymentDueDate', date)}
+                  placeholderText="支払い期限を選択"
+                />
+              </div>
+            </div>
           </div>
 
           {/* パートナーからの請求書 */}
-          <div className="space-y-2">
+          <div className="p-4 bg-orange-50 rounded-lg border border-orange-200 space-y-3">
             <div className="flex items-center justify-between">
-              <h4 className="text-sm font-medium text-gray-700">パートナーからの請求書</h4>
+              <h4 className="text-sm font-medium text-orange-800">パートナーからの請求書</h4>
               {project && (
                 <button
                   type="button"
                   onClick={() => openInvoiceForm('OUTSOURCING')}
-                  className="inline-flex items-center gap-1 text-xs text-orange-600 hover:text-orange-700"
+                  className="inline-flex items-center gap-1 text-xs text-orange-600 hover:text-orange-800"
                 >
                   <Plus className="h-3.5 w-3.5" /> 追加
                 </button>
@@ -1070,19 +1104,19 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
             {invoices.filter(i => i.type === 'OUTSOURCING').length > 0 ? (
               <div className="space-y-2">
                 {invoices.filter(i => i.type === 'OUTSOURCING').map(invoice => (
-                  <div key={invoice.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md border border-gray-200">
+                  <div key={invoice.id} className="flex items-center justify-between p-2.5 bg-white rounded-md border border-orange-100">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <FileText className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                      <FileText className="h-4 w-4 text-orange-400 flex-shrink-0" />
                       <div className="min-w-0">
                         <div className="text-sm font-medium text-gray-900 truncate">
-                          {invoice.description || 'パートナーからの請求書'}
+                          {invoice.description || '請求書'}
                         </div>
                         <div className="flex items-center gap-2 text-xs text-gray-500">
                           {invoice.amount > 0 && <span>{invoice.amount.toLocaleString()}円</span>}
                           {invoice.issueDate && <span>{format(new Date(invoice.issueDate), 'yyyy/MM/dd')}</span>}
                           <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
                             invoice.status === 'PAID' ? 'bg-green-100 text-green-700' :
-                            invoice.status === 'ISSUED' ? 'bg-blue-100 text-blue-700' :
+                            invoice.status === 'ISSUED' ? 'bg-orange-100 text-orange-700' :
                             'bg-gray-100 text-gray-600'
                           }`}>
                             {INVOICE_STATUS_LABELS_OUTSOURCING[invoice.status as keyof typeof INVOICE_STATUS_LABELS_OUTSOURCING] || invoice.status}
@@ -1114,6 +1148,32 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
             ) : (
               <p className="text-xs text-gray-400">{project ? '請求書はまだ登録されていません' : '案件作成後に登録できます'}</p>
             )}
+            <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-orange-200">
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  {...register('outsourcingInvoiceReceived')}
+                  className="rounded border-gray-300 text-orange-600"
+                />
+                <span className="text-sm text-gray-700">請求書受領</span>
+              </label>
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  {...register('outsourcingPaymentMade')}
+                  className="rounded border-gray-300 text-green-600"
+                />
+                <span className="text-sm text-gray-700">振込済</span>
+              </label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-700">振込予定日:</span>
+                <DatePicker
+                  selected={watch('outsourcingPaymentDate')}
+                  onChange={(date) => setValue('outsourcingPaymentDate', date)}
+                  placeholderText="振込予定日を選択"
+                />
+              </div>
+            </div>
           </div>
 
           {/* 請求書入力フォーム（モーダル内モーダル） */}
@@ -1225,81 +1285,6 @@ export function ProjectModal({ isOpen, onClose, project }: ProjectModalProps) {
               </div>
             </div>
           )}
-        </div>
-
-        {/* 請求・支払い */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-900">請求・支払い</h3>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                売上金額（円）
-              </label>
-              <Input
-                type="number"
-                {...register('amount', { valueAsNumber: true })}
-                placeholder="0"
-              />
-              {errors.amount && (
-                <p className="text-sm text-red-600 mt-1">{errors.amount.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                外注費（円）
-              </label>
-              <Input
-                type="number"
-                {...register('outsourcingCost', { valueAsNumber: true })}
-                placeholder="0"
-              />
-              {errors.outsourcingCost && (
-                <p className="text-sm text-red-600 mt-1">{errors.outsourcingCost.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                利益額（円）
-              </label>
-              <div className="px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm font-medium">
-                {(watch('amount') || 0) - (watch('outsourcingCost') || 0)}
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              支払い期限
-            </label>
-            <DatePicker
-              selected={watch('paymentDueDate')}
-              onChange={(date) => setValue('paymentDueDate', date)}
-              placeholderText="支払い期限を選択"
-            />
-          </div>
-
-          <div className="flex space-x-4">
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                {...register('invoiceIssued')}
-                className="rounded border-gray-300"
-              />
-              <span className="text-sm text-gray-700">請求書発行済</span>
-            </label>
-
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                {...register('paymentConfirmed')}
-                className="rounded border-gray-300"
-              />
-              <span className="text-sm text-gray-700">入金確認済</span>
-            </label>
-          </div>
         </div>
 
         {/* アクションボタン */}
