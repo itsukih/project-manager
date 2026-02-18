@@ -278,10 +278,10 @@ export function ProjectPhases({ projectId }: ProjectPhasesProps) {
               </div>
 
               <div className="flex justify-end space-x-2">
-                <Button variant="secondary" size="sm" onClick={handleCancel}>
+                <Button type="button" variant="secondary" size="sm" onClick={handleCancel}>
                   キャンセル
                 </Button>
-                <Button size="sm" onClick={handleSave}>
+                <Button type="button" size="sm" onClick={handleSave}>
                   保存
                 </Button>
               </div>
@@ -302,12 +302,14 @@ export function ProjectPhases({ projectId }: ProjectPhasesProps) {
                 </div>
                 <div className="flex space-x-1">
                   <button
+                    type="button"
                     onClick={() => handleEdit(phase)}
                     className="p-1 text-gray-400 hover:text-gray-600"
                   >
                     <Edit className="h-4 w-4" />
                   </button>
                   <button
+                    type="button"
                     onClick={() => handleDelete(phase.id)}
                     className="p-1 text-gray-400 hover:text-red-600"
                   >
@@ -436,10 +438,10 @@ export function ProjectPhases({ projectId }: ProjectPhasesProps) {
           </div>
 
           <div className="flex justify-end space-x-2">
-            <Button variant="secondary" size="sm" onClick={handleCancel}>
+            <Button type="button" variant="secondary" size="sm" onClick={handleCancel}>
               キャンセル
             </Button>
-            <Button size="sm" onClick={handleSave}>
+            <Button type="button" size="sm" onClick={handleSave}>
               追加
             </Button>
           </div>
@@ -449,6 +451,7 @@ export function ProjectPhases({ projectId }: ProjectPhasesProps) {
       {/* 追加ボタン */}
       {!isAdding && !editingId && (
         <Button
+          type="button"
           variant="secondary"
           size="sm"
           onClick={handleAdd}
