@@ -195,7 +195,7 @@ export function ProjectPhases({ projectId }: ProjectPhasesProps) {
                   </label>
                   <Select
                     value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+                    onChange={(e) => setFormData({ ...formData, type: e.target.value as ProjectPhase['type'] })}
                   >
                     <option value="DESIGN">デザイン</option>
                     <option value="CODING">コーディング</option>
@@ -256,7 +256,7 @@ export function ProjectPhases({ projectId }: ProjectPhasesProps) {
                 </label>
                 <Select
                   value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value as ProjectPhase['status'] })}
                 >
                   <option value="NOT_STARTED">未着手</option>
                   <option value="IN_PROGRESS">進行中</option>
@@ -355,7 +355,7 @@ export function ProjectPhases({ projectId }: ProjectPhasesProps) {
               </label>
               <Select
                 value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value as ProjectPhase['type'] })}
               >
                 <option value="DESIGN">デザイン</option>
                 <option value="CODING">コーディング</option>
@@ -416,7 +416,7 @@ export function ProjectPhases({ projectId }: ProjectPhasesProps) {
             </label>
             <Select
               value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value as ProjectPhase['status'] })}
             >
               <option value="NOT_STARTED">未着手</option>
               <option value="IN_PROGRESS">進行中</option>

@@ -35,7 +35,7 @@ export function TaskModal({ isOpen, onClose, task, parentTask }: TaskModalProps)
     subTaskInput: '',
   });
   const [subTasks, setSubTasks] = useState<Array<{ title: string; completed: boolean }>>([]);
-  const [projects, setProjects] = useState<any[]>([]);
+  const [projects, setProjects] = useState<Array<{ id: number; name: string; client: { name: string } }>>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -128,7 +128,7 @@ export function TaskModal({ isOpen, onClose, task, parentTask }: TaskModalProps)
       const url = task ? `/api/tasks/${task.id}` : '/api/tasks';
       const method = task ? 'PUT' : 'POST';
 
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         title: formData.title,
         description: formData.description,
         category: formData.category,

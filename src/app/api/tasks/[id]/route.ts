@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 
 export async function PUT(
@@ -14,7 +15,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
     }
 
-    const updateData: any = {
+    const updateData: Prisma.TaskUpdateInput = {
       title: data.title,
       description: data.description || null,
       category: data.category,
@@ -91,7 +92,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 });
     }
 
-    const updateData: any = {};
+    const updateData: Prisma.TaskUpdateInput = {};
 
     if (data.completed !== undefined) {
       updateData.completed = data.completed;

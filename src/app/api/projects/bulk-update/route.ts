@@ -1,5 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
+
+interface BulkUpdateItem {
+  id: string | number;
+  consultationDate?: string | null;
+  orderDate?: string | null;
+  startDate?: string | null;
+  firstDraftDate?: string | null;
+  deliveryDate?: string | null;
+}
 
 export async function PATCH(request: NextRequest) {
   try {
@@ -10,10 +20,10 @@ export async function PATCH(request: NextRequest) {
     }
 
     const results = await Promise.all(
-      updates.map(async (update: any) => {
+      updates.map(async (update: BulkUpdateItem) => {
         const { id, ...data } = update;
 
-        const updateData: any = {};
+        const updateData: Prisma.ProjectUpdateInput = {};
 
         if (data.consultationDate !== undefined) {
           updateData.consultationDate = data.consultationDate ? new Date(data.consultationDate) : null;
@@ -32,7 +42,7 @@ export async function PATCH(request: NextRequest) {
         }
 
         return await prisma.project.update({
-          where: { id: parseInt(id) },
+          where: { id: typeof id === 'string' ? parseInt(id) : id },
           data: updateData,
           include: {
             client: true,

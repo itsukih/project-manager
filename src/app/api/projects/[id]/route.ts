@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { addMonths, endOfMonth } from 'date-fns';
 
@@ -60,7 +61,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Invalid project ID' }, { status: 400 });
     }
 
-    const updateData: any = {
+    const updateData: Prisma.ProjectUncheckedUpdateInput = {
       name: data.name,
       description: data.description || null,
       clientId: data.clientId,

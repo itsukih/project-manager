@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma, TaskCategory } from '@prisma/client';
 import prisma from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
@@ -7,12 +8,12 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category');
     const includeCompleted = searchParams.get('includeCompleted') === 'true';
 
-    const where: any = {
+    const where: Prisma.TaskWhereInput = {
       parentId: null, // メインタスクのみ取得（サブタスクは除く）
     };
 
     if (category) {
-      where.category = category;
+      where.category = category as TaskCategory;
     }
 
     // 完了後24時間以上経過したタスクを除外
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
       select: { order: true },
     });
 
-    const taskData: any = {
+    const taskData: Prisma.TaskCreateInput = {
       title: data.title,
       description: data.description || null,
       category: data.category,
@@ -100,8 +101,8 @@ export async function POST(request: NextRequest) {
     // サブタスクがある場合のみ追加
     if (data.subTasks && data.subTasks.length > 0) {
       taskData.subTasks = {
-        create: data.subTasks.map((st: any, index: number) => {
-          const subTaskData: any = {
+        create: data.subTasks.map((st: { title: string; completed?: boolean }, index: number) => {
+          const subTaskData: Prisma.TaskCreateWithoutParentInput = {
             title: st.title,
             description: null,
             category: data.category,

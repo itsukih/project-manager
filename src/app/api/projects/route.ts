@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma, SalesStatus } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { addMonths, endOfMonth } from 'date-fns';
 
@@ -13,7 +14,7 @@ export async function GET(request: NextRequest) {
     const sortOrder = searchParams.get('sortOrder') || 'desc';
     const includeLost = searchParams.get('includeLost') === 'true';
 
-    const where: any = {};
+    const where: Prisma.ProjectWhereInput = {};
 
     if (!includeLost) {
       where.salesStatus = { not: 'LOST' };
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (salesStatus) {
-      where.salesStatus = salesStatus;
+      where.salesStatus = salesStatus as SalesStatus;
     }
 
     if (orderMonth) {
@@ -43,8 +44,8 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    const orderBy: any = {};
-    orderBy[sortBy] = sortOrder;
+    const orderBy: Prisma.ProjectOrderByWithRelationInput = {};
+    (orderBy as Record<string, string>)[sortBy] = sortOrder;
 
     const projects = await prisma.project.findMany({
       where,
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
 
-    const createData: any = {
+    const createData: Prisma.ProjectUncheckedCreateInput = {
       name: data.name,
       description: data.description || null,
       clientId: data.clientId,

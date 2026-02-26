@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 
 export async function GET(request: Request) {
@@ -8,7 +9,7 @@ export async function GET(request: Request) {
     const year = searchParams.get('year');
     const month = searchParams.get('month');
 
-    const where: any = {};
+    const where: Prisma.RegularContactHistoryWhereInput = {};
 
     if (templateId) {
       where.templateId = parseInt(templateId);

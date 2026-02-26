@@ -14,7 +14,13 @@ interface DatePickerProps {
   disabled?: boolean;
 }
 
-const CustomInput = forwardRef<HTMLInputElement, any>(({ value, onClick, className, ...props }, ref) => (
+interface CustomInputProps {
+  value?: string;
+  onClick?: () => void;
+  className?: string;
+}
+
+const CustomInput = forwardRef<HTMLInputElement, CustomInputProps>(({ value, onClick, className, ...props }, ref) => (
   <Input
     ref={ref}
     value={value}
