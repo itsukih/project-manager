@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import type { Project, Client } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -155,6 +156,68 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // 月別入金予定（deliveryDate の翌月 = 入金月）
+    // 対象: 前年12月納品(→当年1月入金) + 当年1〜11月納品(→当年2〜12月入金)
+    const paymentForecastStart = new Date(year - 1, 11, 1); // 前年12月1日
+    const paymentForecastEnd = new Date(year, 11, 1);       // 当年12月1日（11月末まで）
+
+    const paymentProjects = await prisma.project.findMany({
+      where: {
+        deliveryDate: {
+          gte: paymentForecastStart,
+          lt: paymentForecastEnd,
+        },
+        salesStatus: { not: 'LOST' },
+      },
+      include: {
+        client: true,
+      },
+    });
+
+    type ProjectWithClient = Project & { client: Client };
+
+    // 1〜12月の入金予定を構築
+    const monthlyPaymentForecast = Array.from({ length: 12 }, (_, index) => {
+      const paymentMonth = index + 1; // 1〜12
+
+      // 入金月 = 納品月 + 1 なので、納品月 = paymentMonth - 1
+      // paymentMonth=1 → 納品月=12(前年), paymentMonth=2 → 納品月=1(当年), ...
+      const filtered = paymentProjects.filter((project: ProjectWithClient) => {
+        if (!project.deliveryDate) return false;
+        const delivery = new Date(project.deliveryDate);
+        const deliveryMonth = delivery.getMonth() + 1; // 1-12
+        const deliveryYear = delivery.getFullYear();
+
+        // 入金月を計算
+        let incomeMonth = deliveryMonth + 1;
+        let incomeYear = deliveryYear;
+        if (incomeMonth > 12) {
+          incomeMonth = 1;
+          incomeYear += 1;
+        }
+
+        return incomeYear === year && incomeMonth === paymentMonth;
+      });
+
+      const income = filtered.reduce((sum: number, p: ProjectWithClient) => sum + (p.amount || 0), 0);
+      const expense = filtered.reduce((sum: number, p: ProjectWithClient) => sum + (p.outsourcingCost || 0), 0);
+
+      return {
+        month: paymentMonth,
+        income,
+        expense,
+        profit: income - expense,
+        projects: filtered.map((p: ProjectWithClient) => ({
+          id: p.id,
+          name: p.name,
+          clientName: p.client.name,
+          amount: p.amount || 0,
+          outsourcingCost: p.outsourcingCost || 0,
+          deliveryDate: p.deliveryDate ? p.deliveryDate.toISOString() : '',
+        })),
+      };
+    });
+
     return NextResponse.json({
       year,
       totalOrderAmount: orderAmountResult._sum.amount || 0,
@@ -167,6 +230,7 @@ export async function GET(request: NextRequest) {
       monthlyDeliveryAmount,
       monthlyCounts,
       statusCounts,
+      monthlyPaymentForecast,
     });
   } catch (error) {
     console.error('Failed to fetch analytics:', error);
